@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>FlightController</class>
+ <widget class="QWidget" name="FlightController">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1500</width>
+    <height>790</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Form</string>
+  </property>
+  <property name="styleSheet">
+   <string notr="true">background-color: #1e1e1e;background-color: #1e1e1e;</string>
+  </property>
+  <widget class="QWebEngineView" name="mapView" native="true">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>55</y>
+     <width>1501</width>
+     <height>570</height>
+    </rect>
+   </property>
+   <property name="styleSheet">
+    <string notr="true"/>
+   </property>
+  </widget>
+  <widget class="QTableWidget" name="tableWaypoints">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>630</y>
+     <width>1488</width>
+     <height>150</height>
+    </rect>
+   </property>
+   <property name="styleSheet">
+    <string notr="true"/>
+   </property>
+   <property name="columnCount">
+    <number>7</number>
+   </property>
+   <column>
+    <property name="text">
+     <string>Status</string>
+    </property>
+   </column>
+   <column>
+    <property name="text">
+     <string>Latitude</string>
+    </property>
+   </column>
+   <column>
+    <property name="text">
+     <string>Longitude</string>
+    </property>
+   </column>
+   <column>
+    <property name="text">
+     <string>Altitude(m)</string>
+    </property>
+   </column>
+   <column>
+    <property name="text">
+     <string>Distance(m)</string>
+    </property>
+   </column>
+   <column>
+    <property name="text">
+     <string>Radius(m)</string>
+    </property>
+   </column>
+   <column>
+    <property name="text">
+     <string>Remove</string>
+    </property>
+   </column>
+  </widget>
+  <widget class="QFrame" name="topBar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>1520</width>
+     <height>50</height>
+    </rect>
+   </property>
+   <property name="styleSheet">
+    <string notr="true"/>
+   </property>
+   <property name="frameShape">
+    <enum>QFrame::Shape::StyledPanel</enum>
+   </property>
+   <property name="frameShadow">
+    <enum>QFrame::Shadow::Raised</enum>
+   </property>
+   <widget class="QToolButton" name="btnConnect">
+    <property name="geometry">
+     <rect>
+      <x>1320</x>
+      <y>8</y>
+      <width>70</width>
+      <height>38</height>
+     </rect>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">background-color:white</string>
+    </property>
+    <property name="text">
+     <string/>
+    </property>
+   </widget>
+   <widget class="QToolButton" name="btnSend">
+    <property name="geometry">
+     <rect>
+      <x>1410</x>
+      <y>8</y>
+      <width>70</width>
+      <height>38</height>
+     </rect>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">background-color:white</string>
+    </property>
+    <property name="text">
+     <string/>
+    </property>
+   </widget>
+   <widget class="QComboBox" name="cbSerial">
+    <property name="geometry">
+     <rect>
+      <x>1220</x>
+      <y>15</y>
+      <width>76</width>
+      <height>26</height>
+     </rect>
+    </property>
+   </widget>
+  </widget>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>QWebEngineView</class>
+   <extends>QWidget</extends>
+   <header location="global">qwebengineview.h</header>
+   <container>1</container>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
+</ui>

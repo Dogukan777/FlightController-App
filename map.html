@@ -1,0 +1,220 @@
+  <!doctype html>
+  <html>
+  <head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="initial-scale=1, width=device-width" />
+
+  <link rel="stylesheet" href="qrc:/img/leaflet/leaflet.css">
+  <script src="qrc:/img/leaflet/leaflet.js"></script>
+
+  <!-- ✅ Qt WebChannel (JS -> C++) -->
+  <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
+
+  <style>
+  html, body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+  }
+  #map {
+    width: 100%;
+    height: 100%;
+    background: #000;
+  }
+
+  /* Sağ alt panel */
+  .panel {
+    position: absolute;
+    right: 15px;
+    bottom: 40px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .btn {
+    width: 54px;
+    height: 54px;
+    background: rgba(30,30,30,0.9);
+    color: white;
+    font-size: 26px;
+    font-weight: bold;
+    border: 1px solid #555;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .btn:hover { background: #0078ff; }
+  .btn.pickOn { background: #00b35a; }  /* PICK aktifken */
+  </style>
+  </head>
+
+  <body>
+  <div id="map"></div>
+
+  <div class="panel">
+    <button class="btn" onclick="zoomIn()">+</button>
+    <button class="btn" onclick="zoomOut()">−</button>
+    <button id="pickBtn" class="btn" style="font-size:16px" onclick="togglePick()">PICK</button>
+  </div>
+
+  <script>
+  /* -------------------- MAP -------------------- */
+  const map = L.map('map', {
+    zoomControl: false,
+    zoomAnimation: false,
+    fadeAnimation: false,
+    markerZoomAnimation: false,
+    preferCanvas: true,
+    zoomSnap: 1,
+    wheelDebounceTime: 80,
+    wheelPxPerZoomLevel: 120
+  });
+
+  let uavLat = 40.808616;
+  let uavLng = 29.359141;
+  let wpLayer = L.layerGroup().addTo(map);
+  let wpLine = L.polyline([], { weight: 3 }).addTo(map);
+  let wpCount = 0;
+  let wpCircleLayer = L.layerGroup().addTo(map);
+  const circleRenderer = L.svg({ padding: 0.5 });
+
+
+  map.setView([uavLat, uavLng], 16);
+
+
+  function addWaypointMarker(lat, lng) {
+    wpCount++;
+    const m = L.marker([lat, lng]).addTo(wpLayer);
+    m.bindTooltip("WP " + wpCount, {permanent:true, direction:"top", offset:[0,-10]});
+    wpLine.addLatLng([lat, lng]);
+  }
+  // C++'tan tablo temizlenince haritayı da temizlemek istersen:
+  function clearWaypointsOnMap(){
+    wpLayer.clearLayers();
+    wpLine.setLatLngs([]);
+    wpCircleLayer.clearLayers(); // ✅ radiusları da sil
+    wpCount = 0;
+  }
+
+  L.tileLayer(
+    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    {
+      maxZoom: 19,
+      keepBuffer: 10,
+      updateWhenZooming: false,
+      updateWhenIdle: true,
+      crossOrigin: true
+    }
+  ).addTo(map);
+
+  // UAV icon
+  const uavIcon = L.icon({
+    iconUrl: 'qrc:/img/uav.png',
+    iconSize: [64, 64],
+    iconAnchor: [32, 32]
+  });
+
+  const marker = L.marker([uavLat, uavLng], { icon: uavIcon }).addTo(map);
+
+  /* -------------------- ZOOM BUTTONS -------------------- */
+  function zoomIn() {
+    map.setView([uavLat, uavLng], map.getZoom() + 1, { animate: false });
+  }
+  function zoomOut() {
+    map.setView([uavLat, uavLng], map.getZoom() - 1, { animate: false });
+  }
+
+  /* Qt'den UAV konumu güncellemek için */
+  function setUav(lat, lng) {
+    uavLat = lat; uavLng = lng;
+    marker.setLatLng([lat, lng]);
+    map.panTo([lat, lng], { animate: false });
+  }
+
+  /* -------------------- FIX SIZE -------------------- */
+  function fixSize() { map.invalidateSize(true); }
+  window.addEventListener('load', () => { fixSize(); setTimeout(fixSize, 200); });
+  window.addEventListener('resize', fixSize);
+
+  /* -------------------- WEBCHANNEL (JS -> C++) -------------------- */
+  let bridge = null;
+
+  // QWebChannel bridge hazırla
+  new QWebChannel(qt.webChannelTransport, function(channel) {
+    bridge = channel.objects.bridge;   // C++'ta "bridge" adıyla register edeceğiz
+    // İstersen test:
+    if (bridge && bridge.jsReady) bridge.jsReady("map.html JS ready");
+  });
+
+  /* -------------------- PICK MODE -------------------- */
+  let pickMode = false;
+  const pickBtn = document.getElementById("pickBtn");
+
+  function togglePick() {
+    pickMode = !pickMode;
+    pickBtn.classList.toggle("pickOn", pickMode);
+
+    if (bridge && bridge.pickModeChanged) {
+      bridge.pickModeChanged(pickMode);
+    }
+  }
+
+  function redrawWaypointsFromList(coordsArray) {
+    clearWaypointsOnMap();
+
+    if (!coordsArray || coordsArray.length === 0) return;
+
+    for (let i = 0; i < coordsArray.length; i++) {
+      const lat = coordsArray[i][0];
+      const lng = coordsArray[i][1];
+      const rad = coordsArray[i][2] ?? 50;   // ✅ radius yoksa 50
+
+      addWaypointMarker(lat, lng);
+      addRadiusCircle(lat, lng, rad);        // ✅ radius dairesi
+    }
+  }
+
+  function addRadiusCircle(lat, lng, radiusMeters) {
+    L.circle([lat, lng], {
+      radius: radiusMeters,     // metre
+      color: "white",
+      weight: 2,
+      fill: false,
+      dashArray: "6 8",         // ✅ kesik çizgi
+      renderer: circleRenderer  // ✅ SVG ile çiz
+    }).addTo(wpCircleLayer);
+  }
+
+  // Harita tıklaması
+  map.on('click', function(e) {
+    if (!pickMode) return;
+
+    const lat = e.latlng.lat;
+    const lng = e.latlng.lng;
+
+    addWaypointMarker(lat, lng);
+    addRadiusCircle(lat, lng, 50);
+    // Leaflet container içindeki piksel koordinatı
+    const p = map.latLngToContainerPoint(e.latlng);
+    const x = Math.round(p.x);
+    const y = Math.round(p.y);
+
+    // ✅ C++'a gönder
+    if (bridge && bridge.onMapClicked) {
+      bridge.onMapClicked(lat, lng, x, y);
+    }
+    if (bridge && bridge.addWaypoint) {
+      bridge.addWaypoint(lat, lng); // C++ tarafı alt+dist hesaplayacak
+    }
+
+    // pickMode tek seferlik olsun istiyorsan aç:
+    // togglePick();
+  });
+  </script>
+
+  </body>
+  </html>

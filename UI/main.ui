@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>Main</class>
+ <widget class="QMainWindow" name="Main">
+  <property name="enabled">
+   <bool>true</bool>
+  </property>
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1440</width>
+    <height>720</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Main</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <property name="styleSheet">
+    <string notr="true">background-color: #1e1e1e;</string>
+   </property>
+   <widget class="QLabel" name="imageLabel">
+    <property name="geometry">
+     <rect>
+      <x>80</x>
+      <y>50</y>
+      <width>1024</width>
+      <height>720</height>
+     </rect>
+    </property>
+    <property name="sizePolicy">
+     <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+      <horstretch>0</horstretch>
+      <verstretch>0</verstretch>
+     </sizepolicy>
+    </property>
+    <property name="text">
+     <string/>
+    </property>
+   </widget>
+  </widget>
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>1440</width>
+     <height>56</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <pointsize>-1</pointsize>
+     <bold>true</bold>
+    </font>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">QMenuBar {
+    min-height: 50px;
+	min-width:60px;
+    font-size: 18px;
+}
+
+QMenu {
+    font-size: 18px;
+}
+
+QMenu::item {
+    padding: 8px 20px;
+}</string>
+   </property>
+   <widget class="QMenu" name="menuMap">
+    <property name="geometry">
+     <rect>
+      <x>339</x>
+      <y>152</y>
+      <width>163</width>
+      <height>178</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <pointsize>-1</pointsize>
+     </font>
+    </property>
+    <property name="title">
+     <string>Map</string>
+    </property>
+    <addaction name="separator"/>
+    <addaction name="actionOpen_Map"/>
+    <addaction name="actionMapOpenGl"/>
+   </widget>
+   <widget class="QMenu" name="actionFlightController">
+    <property name="title">
+     <string>Uçuş Planı</string>
+    </property>
+   </widget>
+   <addaction name="menuMap"/>
+   <addaction name="actionFlightController"/>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+  <action name="actionOpen_Map">
+   <property name="text">
+    <string>Open Map</string>
+   </property>
+   <property name="font">
+    <font>
+     <pointsize>12</pointsize>
+     <bold>true</bold>
+    </font>
+   </property>
+  </action>
+  <action name="actionMapOpenGl">
+   <property name="text">
+    <string>MapOpenGl</string>
+   </property>
+  </action>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

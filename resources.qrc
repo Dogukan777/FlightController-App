@@ -1,0 +1,17 @@
+<RCC>
+    <qresource prefix="/">
+        <file>map.html</file>
+        <file>img/logo.jpeg</file>
+        <file>img/leaflet/leaflet.js</file>
+        <file>img/leaflet/images/layers.png</file>
+        <file>img/leaflet/images/layers-2x.png</file>
+        <file>img/leaflet/images/marker-icon.png</file>
+        <file>img/leaflet/images/marker-icon-2x.png</file>
+        <file>img/leaflet/images/marker-shadow.png</file>
+        <file>img/leaflet/leaflet.css</file>
+        <file>img/marker.png</file>
+        <file>img/uav.png</file>
+        <file>img/connect.png</file>
+        <file>img/send.png</file>
+    </qresource>
+</RCC>
