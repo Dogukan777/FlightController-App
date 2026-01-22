@@ -254,7 +254,7 @@ void FlightController::onConnectClicked()
         return;
     }else if(!isConnected){
         currentPort = portName;
-        serial->send(portName, "    CONNECT\n");
+        serial->send(portName, "CONNECT\n");
     }else{
         serial->send(currentPort, "DISCONNECT\n");
     }
@@ -262,7 +262,6 @@ void FlightController::onConnectClicked()
 }
 void FlightController::onSerialMessage(const QString &port, const QString &msg)
 {
-    serial->clearRx();
     Q_UNUSED(port);
     qDebug() << "msg:"<<msg;
     const QStringList lines = msg.split('\n', Qt::SkipEmptyParts);
@@ -287,9 +286,31 @@ void FlightController::onSerialMessage(const QString &port, const QString &msg)
 
 void FlightController::onSendClicked()
 {
-    qDebug() << "OnSendClicked!";
+    const QString portName = ui->cbSerial->currentText().trimmed();
+    if (portName.isEmpty() || wps.isEmpty()) return;
 
+    serial->send(portName, QString("WP_BEGIN,%1\n").arg(wps.size()));
+
+    for (const Waypoint &wp : wps)
+    {
+        QString status = wp.status;
+        status.replace("\"", "'");
+
+        QString line = QString("WP,%1,%2,%3,%4,%5,\"%6\"\n")
+                           .arg(wp.lat,    0, 'f', 6)
+                           .arg(wp.lon,    0, 'f', 6)
+                           .arg(wp.alt,    0, 'f', 2)
+                           .arg(wp.dist,   0, 'f', 2)
+                           .arg(wp.radius, 0, 'f', 2)
+                           .arg(status);
+
+        qDebug() << line ;
+        serial->send(portName, line);
+    }
+
+    serial->send(portName, "WP_END\n");
 }
+
 
 void FlightController::appendWaypoint(double lat, double lon)
 {

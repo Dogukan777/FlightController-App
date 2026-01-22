@@ -55,6 +55,7 @@ private:
     SerialManager *serial;
     bool isConnected = false;
     QString currentPort;
+    QString rxBuffer;
     static constexpr int COL_STATUS = 0;
     static constexpr int COL_LAT    = 1;
     static constexpr int COL_LON    = 2;
