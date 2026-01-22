@@ -27,11 +27,13 @@ set(PROJECT_SOURCES
     Source/mapwindow.cpp
     Source/flightcontroller.cpp
     Source/bridge
+    Source/serialManager.cpp
 
     Header/main.h
     Header/mapwindow.h
     Header/websocketclient.h
     Header/flightcontroller.h
+    Header/serialManager.h
 
     UI/main.ui
     UI/mapwindow.ui
@@ -54,6 +56,8 @@ qt_add_executable(Kuzgun
         Source/MapBridge.cpp
         Source/bridge
         Header/bridge.h
+        Header/serialManager.h
+        Source/serialManager.cpp
 
 
     )

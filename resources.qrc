@@ -13,5 +13,6 @@
         <file>img/uav.png</file>
         <file>img/connect.png</file>
         <file>img/send.png</file>
+        <file>img/disconnect.png</file>
     </qresource>
 </RCC>

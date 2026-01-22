@@ -4,8 +4,9 @@
 #include <QMainWindow>
 #include "websocketclient.h"
 #include "mapwindow.h"
-#include "mapopengl.h"
 #include "flightcontroller.h"
+#include "SerialManager.h"
+
 
 QT_BEGIN_NAMESPACE
 namespace Ui {

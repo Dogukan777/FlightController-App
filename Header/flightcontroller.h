@@ -3,6 +3,7 @@
 
 #include <QWidget>
 #include "MapBridge.h"
+#include "SerialManager.h"
 
 namespace Ui {
 class FlightController;
@@ -19,6 +20,8 @@ struct Waypoint {
 class FlightController : public QWidget
 {
     Q_OBJECT
+
+
 
 public:
     explicit FlightController(QWidget *parent = nullptr);
@@ -41,10 +44,17 @@ public:
     void addStyleSheet();
     void listSerialPorts();
 
+private slots:
+    void onConnectClicked();
+    void onSendClicked();
+    void onSerialMessage(const QString &port, const QString &msg);
 
 private:
     Ui::FlightController *ui;
     MapBridge *bridge;
+    SerialManager *serial;
+    bool isConnected = false;
+    QString currentPort;
     static constexpr int COL_STATUS = 0;
     static constexpr int COL_LAT    = 1;
     static constexpr int COL_LON    = 2;

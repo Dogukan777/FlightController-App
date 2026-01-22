@@ -13,7 +13,7 @@
 
 #include <QWebChannel>
 #include <QWebEnginePage>
-
+#include <QTimer>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QSerialPortInfo>
@@ -113,8 +113,6 @@ void FlightController::addStyleSheet(){
         "}"
         );
 
-
-
 }
 
 
@@ -127,6 +125,15 @@ FlightController::FlightController(QWidget *parent)
 
     addStyleSheet();
     listSerialPorts();
+    serial = new SerialManager(this);
+    connect(serial, &SerialManager::messageReceived,
+            this, &FlightController::onSerialMessage);
+
+    connect(ui->btnConnect, &QToolButton::clicked,
+            this, &FlightController::onConnectClicked);
+
+    connect(ui->btnSend, &QToolButton::clicked,
+            this, &FlightController::onSendClicked);
 
     connect(ui->tableWaypoints, &QTableWidget::cellChanged,
             this, [this](int row, int col)
@@ -229,6 +236,59 @@ double FlightController::haversineMeters(double lat1, double lon1, double lat2, 
 
     const double c = 2 * std::atan2(std::sqrt(a), std::sqrt(1-a));
     return R * c;
+}
+
+
+void FlightController::onConnectClicked()
+{
+
+    const QString portName = ui->cbSerial->currentText().trimmed();
+    qDebug() << "Port:"<< portName;
+    serial->clearRx();
+    if (portName.isEmpty()) {
+        qDebug() << "Port seçilmedi!";
+        return;
+    }
+    if (!serial->connectSerial(portName)) {
+        qDebug() << "Serial bağlantı kurulamadı!";
+        return;
+    }else if(!isConnected){
+        currentPort = portName;
+        serial->send(portName, "    CONNECT\n");
+    }else{
+        serial->send(currentPort, "DISCONNECT\n");
+    }
+
+}
+void FlightController::onSerialMessage(const QString &port, const QString &msg)
+{
+    serial->clearRx();
+    Q_UNUSED(port);
+    qDebug() << "msg:"<<msg;
+    const QStringList lines = msg.split('\n', Qt::SkipEmptyParts);
+    for (const QString &lineRaw : lines) {
+        const QString line = lineRaw.trimmed();
+        ui->btnConnect->setEnabled(true);
+        if (line == "TRUE") {
+            isConnected = true;
+            ui->btnConnect->setIcon(QIcon(":/img/disconnect.png"));
+            qDebug() << "STM32: TRUE (connected)";
+        }
+        else if (line == "FALSE") {
+            isConnected = false;
+            ui->btnConnect->setIcon(QIcon(":/img/connect.png"));
+            serial->disconnectSerial(currentPort);
+            qDebug() << "STM32: FALSE (not connected)";
+        }
+    }
+}
+
+
+
+void FlightController::onSendClicked()
+{
+    qDebug() << "OnSendClicked!";
+
 }
 
 void FlightController::appendWaypoint(double lat, double lon)

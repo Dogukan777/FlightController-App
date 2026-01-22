@@ -13,7 +13,6 @@ Main::Main(QWidget *parent)
 {
     ui->setupUi(this);
     getLogo();
-
     connect(ui->actionOpen_Map, &QAction::triggered,
             this, &Main::openMapWindow);
     connect(ui->actionFlightController, &QMenu::aboutToShow,
@@ -24,6 +23,7 @@ Main::Main(QWidget *parent)
 
 
 }
+
 
 void Main::getLogo(){
     QLabel *logo = new QLabel(this);
