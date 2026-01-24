@@ -70,11 +70,23 @@ void FlightController::addStyleSheet(){
     ui->tableWaypoints->blockSignals(true);
 
     ui->btnConnect->setIcon(QIcon(":/img/connect.png"));
-    ui->btnConnect->setIconSize(QSize(70, 38));   // istediğin boyut
+    ui->btnConnect->setIconSize(QSize(70, 42));   // istediğin boyut
 
     ui->btnSend->setIcon(QIcon(":/img/send.png"));
-    ui->btnSend->setIconSize(QSize(70, 38));
+    ui->btnSend->setIconSize(QSize(70, 42));
+
+    ui->btnRead->setIcon(QIcon(":/img/read.png"));
+    ui->btnRead->setIconSize(QSize(70, 42));
     ui->btnConnect->setStyleSheet(
+        "QToolButton {"
+        "   border: 1px solid white;"
+        "   border-radius: 6px;"
+        "   background-color: #2b2b2b;"
+        "}"
+        "QToolButton:hover { border: 2px solid #0078ff; }"
+        "QToolButton:pressed { border: 2px solid #004f9e; }"
+        );
+    ui->btnRead->setStyleSheet(
         "QToolButton {"
         "   border: 1px solid white;"
         "   border-radius: 6px;"
@@ -134,6 +146,9 @@ FlightController::FlightController(QWidget *parent)
 
     connect(ui->btnSend, &QToolButton::clicked,
             this, &FlightController::onSendClicked);
+
+    connect(ui->btnRead, &QToolButton::clicked,
+            this, &FlightController::onReadClicked);
 
     connect(ui->tableWaypoints, &QTableWidget::cellChanged,
             this, [this](int row, int col)
@@ -204,6 +219,10 @@ FlightController::FlightController(QWidget *parent)
 
 FlightController::~FlightController()
 {
+    if (isConnected){
+        serial->send(currentPort, "DISCONNECT\n");
+        isConnected = false;
+    }
     delete ui;
 }
 
@@ -241,9 +260,8 @@ double FlightController::haversineMeters(double lat1, double lon1, double lat2, 
 
 void FlightController::onConnectClicked()
 {
-
     const QString portName = ui->cbSerial->currentText().trimmed();
-    qDebug() << "Port:"<< portName;
+    //qDebug() << "Port:"<< portName;
     serial->clearRx();
     if (portName.isEmpty()) {
         qDebug() << "Port seçilmedi!";
@@ -258,38 +276,37 @@ void FlightController::onConnectClicked()
     }else{
         serial->send(currentPort, "DISCONNECT\n");
     }
-
 }
-void FlightController::onSerialMessage(const QString &port, const QString &msg)
+
+void FlightController::onReadClicked()
 {
-    Q_UNUSED(port);
-    qDebug() << "msg:"<<msg;
-    const QStringList lines = msg.split('\n', Qt::SkipEmptyParts);
-    for (const QString &lineRaw : lines) {
-        const QString line = lineRaw.trimmed();
-        ui->btnConnect->setEnabled(true);
-        if (line == "TRUE") {
-            isConnected = true;
-            ui->btnConnect->setIcon(QIcon(":/img/disconnect.png"));
-            qDebug() << "STM32: TRUE (connected)";
-        }
-        else if (line == "FALSE") {
-            isConnected = false;
-            ui->btnConnect->setIcon(QIcon(":/img/connect.png"));
-            serial->disconnectSerial(currentPort);
-            qDebug() << "STM32: FALSE (not connected)";
-        }
+    const QString portName = ui->cbSerial->currentText().trimmed();
+    if (portName.isEmpty()) return;
+
+    if (!isConnected) {
+        qDebug() << "READ ignored: not connected";
+        return;
     }
+    wpReading = false;
+    wps.clear();
+    serial->clearRx();
+    serial->send(currentPort, "READ\n");
 }
-
-
 
 void FlightController::onSendClicked()
 {
+    if (!isConnected) {
+        qDebug() << "SEND ignored: not connected";
+        return;
+    }
+
     const QString portName = ui->cbSerial->currentText().trimmed();
     if (portName.isEmpty() || wps.isEmpty()) return;
 
-    serial->send(portName, QString("WP_BEGIN,%1\n").arg(wps.size()));
+    serial->clearRx();
+
+    // --- WP upload protokolü ---
+    serial->send(currentPort, QString("WP_BEGIN,%1\n").arg(wps.size()));
 
     for (const Waypoint &wp : wps)
     {
@@ -297,19 +314,108 @@ void FlightController::onSendClicked()
         status.replace("\"", "'");
 
         QString line = QString("WP,%1,%2,%3,%4,%5,\"%6\"\n")
-                           .arg(wp.lat,    0, 'f', 6)
-                           .arg(wp.lon,    0, 'f', 6)
+                           .arg(wp.lat,    0, 'f', 7)
+                           .arg(wp.lon,    0, 'f', 7)
                            .arg(wp.alt,    0, 'f', 2)
                            .arg(wp.dist,   0, 'f', 2)
                            .arg(wp.radius, 0, 'f', 2)
                            .arg(status);
 
-        qDebug() << line ;
-        serial->send(portName, line);
+        serial->send(currentPort, line);
     }
 
-    serial->send(portName, "WP_END\n");
+    serial->send(currentPort, "WP_END\n");
 }
+
+void FlightController::onSerialMessage(const QString &port, const QString &msg)
+{
+    Q_UNUSED(port);
+
+    static QString rxAccum;
+    qDebug() << "msg" << msg;
+    rxAccum += msg;
+
+    int nlIndex = -1;
+    while ((nlIndex = rxAccum.indexOf('\n')) != -1)
+    {
+        QString line = rxAccum.left(nlIndex).trimmed();
+        rxAccum.remove(0, nlIndex + 1);
+
+        if (line.isEmpty()) continue;
+
+        ui->btnConnect->setEnabled(true);
+
+        // --------- Senin mevcut TRUE/FALSE kısmın aynı ---------
+        if (line.contains("TRUE")) {
+            isConnected = true;
+            ui->btnConnect->setIcon(QIcon(":/img/disconnect.png"));
+            qDebug() << "STM32: TRUE (connected)";
+        }
+        else if (line.contains("FALSE")) {
+            isConnected = false;
+            ui->btnConnect->setIcon(QIcon(":/img/connect.png"));
+            serial->disconnectSerial(currentPort);
+            qDebug() << "STM32: FALSE (not connected)";
+        }
+
+        else if (line.startsWith("WP_BEGIN,")) {
+            // örn: WP_BEGIN,6
+            wps.clear();
+            wpReading = true;
+            qDebug() << "STM32: " << line;
+        }
+        else if (line == "WP_END") {
+            wpReading = false;
+            qDebug() << "STM32: WP_END -> total:" << wps.size();
+
+            refreshTable();
+            redrawWaypointsOnMap();
+        }
+        else if (wpReading && line.startsWith("WP,")) {
+            // WP,lat,lon,alt,dist,radius,"status"
+
+            Waypoint wp{};
+            wp.status = "WAYPOINT";
+
+            // hızlı parse (status virgül içermiyorsa split yeter)
+            QStringList parts = line.split(',');
+            if (parts.size() >= 6)
+            {
+                bool ok1, ok2, ok3, ok4, ok5;
+                wp.lat    = parts[1].toDouble(&ok1);
+                wp.lon    = parts[2].toDouble(&ok2);
+                wp.alt    = parts[3].toDouble(&ok3);
+                wp.dist   = parts[4].toDouble(&ok4);
+                wp.radius = parts[5].toDouble(&ok5);
+
+                // status "..." içinden çek (en güvenlisi)
+                int q1 = line.indexOf('"');
+                int q2 = line.lastIndexOf('"');
+                if (q1 != -1 && q2 > q1) {
+                    wp.status = line.mid(q1 + 1, q2 - q1 - 1);
+                }
+
+                if (ok1 && ok2 && ok3 && ok4 && ok5) {
+                    wps.push_back(wp);
+                } else {
+                    qDebug() << "WP parse fail:" << line;
+                }
+            }
+            else {
+                qDebug() << "WP format bad:" << line;
+            }
+        }
+        else {
+            // diğer mesajlar
+            qDebug() << "STM32:" << line;
+        }
+    }
+}
+
+
+
+
+
 
 
 void FlightController::appendWaypoint(double lat, double lon)
@@ -346,6 +452,7 @@ void FlightController::appendWaypoint(double lat, double lon)
     // Remove butonu
     addRemoveButton(row);
 }
+
 
 void FlightController::refreshTable()
 {
@@ -495,7 +602,9 @@ void FlightController::addStatusCombo(int row)
         "VTOL_TAKEOFF",
         "VTOL_LAND",
         "LOITER",
-        "RTL"
+        "RTL",
+        "Yasin",
+        "Doğukan"
     });
 
     // default

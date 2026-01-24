@@ -68,6 +68,7 @@
     zoomAnimation: false,
     fadeAnimation: false,
     markerZoomAnimation: false,
+    attributionControl: false,
     preferCanvas: true,
     zoomSnap: 1,
     wheelDebounceTime: 80,
@@ -104,10 +105,13 @@
     'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
     {
       maxZoom: 19,
-      keepBuffer: 10,
+      keepBuffer: 6,
       updateWhenZooming: false,
       updateWhenIdle: true,
-      crossOrigin: true
+      crossOrigin: true,
+      detectRetina: false,
+      reuseTiles: true,
+      unloadInvisibleTiles: true,
     }
   ).addTo(map);
 

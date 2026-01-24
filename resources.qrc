@@ -14,5 +14,6 @@
         <file>img/connect.png</file>
         <file>img/send.png</file>
         <file>img/disconnect.png</file>
+        <file>img/read.png</file>
     </qresource>
 </RCC>

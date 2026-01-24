@@ -44,9 +44,11 @@ public:
     void addStyleSheet();
     void listSerialPorts();
 
+
 private slots:
     void onConnectClicked();
     void onSendClicked();
+    void onReadClicked();
     void onSerialMessage(const QString &port, const QString &msg);
 
 private:
@@ -54,6 +56,7 @@ private:
     MapBridge *bridge;
     SerialManager *serial;
     bool isConnected = false;
+    bool wpReading = false;
     QString currentPort;
     QString rxBuffer;
     static constexpr int COL_STATUS = 0;

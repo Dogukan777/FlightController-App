@@ -101,10 +101,10 @@
    <widget class="QToolButton" name="btnConnect">
     <property name="geometry">
      <rect>
-      <x>1320</x>
-      <y>8</y>
+      <x>1220</x>
+      <y>6</y>
       <width>70</width>
-      <height>38</height>
+      <height>42</height>
      </rect>
     </property>
     <property name="styleSheet">
@@ -117,10 +117,10 @@
    <widget class="QToolButton" name="btnSend">
     <property name="geometry">
      <rect>
-      <x>1410</x>
-      <y>8</y>
+      <x>1310</x>
+      <y>6</y>
       <width>70</width>
-      <height>38</height>
+      <height>42</height>
      </rect>
     </property>
     <property name="styleSheet">
@@ -133,11 +133,27 @@
    <widget class="QComboBox" name="cbSerial">
     <property name="geometry">
      <rect>
-      <x>1220</x>
-      <y>15</y>
+      <x>1120</x>
+      <y>13</y>
       <width>76</width>
-      <height>26</height>
+      <height>29</height>
      </rect>
+    </property>
+   </widget>
+   <widget class="QToolButton" name="btnRead">
+    <property name="geometry">
+     <rect>
+      <x>1400</x>
+      <y>6</y>
+      <width>70</width>
+      <height>42</height>
+     </rect>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">background-color:white</string>
+    </property>
+    <property name="text">
+     <string/>
     </property>
    </widget>
   </widget>
