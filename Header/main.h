@@ -2,11 +2,7 @@
 #define MAIN_H
 
 #include <QMainWindow>
-#include "websocketclient.h"
-#include "mapwindow.h"
-#include "flightcontroller.h"
-#include "SerialManager.h"
-
+#include "home.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -23,15 +19,14 @@ public:
     ~Main();
 
 private:
-    MapWindow *mapWindow = nullptr;
-    FlightController *flightController = nullptr;
+
     Ui::Main *ui;
-    WebSocketClient *wsClient;
-    void getLogo();
+    Home *homeWin = nullptr;
+    void addStyleSheet();
 
 private slots:
-    void openMapWindow();
-    void openFlightController();
+    void on_btnUAV_clicked();
+    void on_btnUGV_clicked();
 
 };
 #endif // MAIN_H

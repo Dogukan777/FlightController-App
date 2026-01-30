@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="qrc:/img/leaflet/leaflet.css">
   <script src="qrc:/img/leaflet/leaflet.js"></script>
 
-  <!-- ✅ Qt WebChannel (JS -> C++) -->
+  <!--  Qt WebChannel (JS -> C++) -->
   <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
 
   <style>
@@ -48,7 +48,7 @@
   }
 
   .btn:hover { background: #0078ff; }
-  .btn.pickOn { background: #00b35a; }  /* PICK aktifken */
+  .btn.pickOn { background: #00b35a; }
   </style>
   </head>
 
@@ -58,7 +58,7 @@
   <div class="panel">
     <button class="btn" onclick="zoomIn()">+</button>
     <button class="btn" onclick="zoomOut()">−</button>
-    <button id="pickBtn" class="btn" style="font-size:16px" onclick="togglePick()">PICK</button>
+    <button id="pickBtn" class="btn" style="font-size:16px"  onclick="togglePick()">PICK</button>
   </div>
 
   <script>
@@ -158,6 +158,23 @@
   let pickMode = false;
   const pickBtn = document.getElementById("pickBtn");
 
+  function getQueryParam(name, def="") {
+    const url = new URL(window.location.href);
+    return url.searchParams.get(name) ?? def;
+  }
+
+  // ✅ sayfa açılır açılmaz çalışsın
+  const pickDefault = getQueryParam("pick", "1"); // default: 1 (görünsün)
+  if (pickDefault === "0") {
+    // Home için kapalı
+    pickBtn.style.display = "none";
+    pickMode = false;
+  } else {
+    // FlightController için açık
+    pickBtn.style.display = "block";
+  }
+
+
   function togglePick() {
     pickMode = !pickMode;
     pickBtn.classList.toggle("pickOn", pickMode);
@@ -175,23 +192,37 @@
     for (let i = 0; i < coordsArray.length; i++) {
       const lat = coordsArray[i][0];
       const lng = coordsArray[i][1];
-      const rad = coordsArray[i][2] ?? 50;   // ✅ radius yoksa 50
+      const rad = coordsArray[i][2] ?? 50;
 
       addWaypointMarker(lat, lng);
-      addRadiusCircle(lat, lng, rad);        // ✅ radius dairesi
+      addRadiusCircle(lat, lng, rad);
     }
   }
 
   function addRadiusCircle(lat, lng, radiusMeters) {
     L.circle([lat, lng], {
-      radius: radiusMeters,     // metre
+      radius: radiusMeters,
       color: "white",
       weight: 2,
       fill: false,
-      dashArray: "6 8",         // ✅ kesik çizgi
-      renderer: circleRenderer  // ✅ SVG ile çiz
+      dashArray: "6 8",
+      renderer: circleRenderer
     }).addTo(wpCircleLayer);
   }
+  function setPickVisible(visible) {
+    const btn = document.getElementById("pickBtn");
+    if (!btn) return;
+
+    if (visible) {
+      btn.style.display = "block";
+    } else {
+      btn.style.display = "none";
+      pickMode = false;
+      btn.classList.remove("pickOn");
+    }
+  }
+
+
 
   // Harita tıklaması
   map.on('click', function(e) {
@@ -207,7 +238,7 @@
     const x = Math.round(p.x);
     const y = Math.round(p.y);
 
-    // ✅ C++'a gönder
+
     if (bridge && bridge.onMapClicked) {
       bridge.onMapClicked(lat, lng, x, y);
     }
@@ -218,6 +249,7 @@
     // pickMode tek seferlik olsun istiyorsan aç:
     // togglePick();
   });
+
   </script>
 
   </body>

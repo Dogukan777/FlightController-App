@@ -23,22 +23,18 @@ set(TS_FILES Kuzgun_en_US.ts)
 
 set(PROJECT_SOURCES
     Source/main.cpp
-    Source/websocketclient.cpp
-    Source/mapwindow.cpp
     Source/flightcontroller.cpp
-    Source/bridge
     Source/serialManager.cpp
+    Source/home.cpp
 
+    Header/home.h
     Header/main.h
-    Header/mapwindow.h
-    Header/websocketclient.h
     Header/flightcontroller.h
     Header/serialManager.h
 
+    UI/home.ui
     UI/main.ui
-    UI/mapwindow.ui
     UI/flightcontroller.ui
-
 
     resources.qrc
 )
@@ -50,15 +46,17 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
 qt_add_executable(Kuzgun
         MANUAL_FINALIZATION
         ${PROJECT_SOURCES}
-        Header/mapwindow.h Source/mapwindow.cpp UI/mapwindow.ui
-        Header/flightcontroller.h  UI/flightcontroller.ui
+        Header/flightcontroller.h
         Header/MapBridge.h
-        Source/MapBridge.cpp
-        Source/bridge
-        Header/bridge.h
         Header/serialManager.h
+        Header/home.h
+
+        Source/MapBridge.cpp
+        Source/home.cpp
         Source/serialManager.cpp
 
+        UI/home.ui
+        UI/flightcontroller.ui
 
     )
 target_include_directories(Kuzgun PRIVATE

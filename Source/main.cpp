@@ -9,61 +9,66 @@
 Main::Main(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::Main)
-    , wsClient(new WebSocketClient(this))
 {
     ui->setupUi(this);
-    getLogo();
-    connect(ui->actionOpen_Map, &QAction::triggered,
-            this, &Main::openMapWindow);
-    connect(ui->actionFlightController, &QMenu::aboutToShow,
-            this, &Main::openFlightController);
-
-
-
-
-
+    addStyleSheet();
+    setWindowTitle("Flight Controller");
+    setWindowIcon(QIcon(":/img/logo.jpeg"));
 }
-
-
-void Main::getLogo(){
-    QLabel *logo = new QLabel(this);
-    QPixmap pix(":/img/logo.jpeg");
-    logo->setPixmap(pix.scaled(70, 60, Qt::KeepAspectRatio, Qt::SmoothTransformation));
-    logo->setAlignment(Qt::AlignCenter);
-
-    // Sağ köşe widget
-    QWidget *rightWidget = new QWidget(this);
-    QHBoxLayout *layout = new QHBoxLayout(rightWidget);
-    layout->addStretch();        // sağa it
-    layout->addWidget(logo);
-    layout->setContentsMargins(0, 5, 20, 5);
-
-    // Menüye ekle
-    ui->menubar->setCornerWidget(rightWidget, Qt::TopRightCorner);
-
-}
-void Main::openMapWindow()
+void Main::addStyleSheet()
 {
-    qDebug() << "openMapWindow triggered!";
+    ui->btnUAV->setIcon(QIcon(":/img/flightcontroller.png"));
+    ui->btnUAV->setText("");
+    ui->btnUAV->setFlat(false);
 
-    if (!mapWindow) {
-        mapWindow = new MapWindow(nullptr);     // <-- this yerine nullptr
-        mapWindow->setAttribute(Qt::WA_DeleteOnClose);
+    ui->btnUAV->setIconSize(QSize(440, 350));
 
-        // Pencere kapanınca pointer'ı sıfırla (tekrar açabilmek için)
-        connect(mapWindow, &QObject::destroyed, this, [this]() {
-            mapWindow = nullptr;
-        });
+    ui->btnUAV->setStyleSheet(
+        "#btnUAV {"
+        "   background-color: #1e1e1e;"
+        "   border: 2px solid #2d2d2d;"
+        "   border-radius: 14px;"
+        "}"
+        "#btnUAV:hover {"
+        "   border: 2px solid #0078ff;"
+        "}"
 
-        mapWindow->setWindowTitle("Map");
-        mapWindow->resize(1500, 770);
-    }
+        );
+    ui->btnUGV->setIcon(QIcon(":/img/rovercontroller.png"));
+    ui->btnUGV->setText("");
+    ui->btnUGV->setFlat(false);
 
-    mapWindow->show();
-    mapWindow->raise();
-    mapWindow->activateWindow();
+    ui->btnUGV->setIconSize(QSize(440, 350));
+
+    ui->btnUGV->setStyleSheet(
+        "#btnUGV {"
+        "   background-color: #1e1e1e;"
+        "   border: 2px solid #2d2d2d;"
+        "   border-radius: 14px;"
+        "}"
+        "#btnUGV:hover {"
+        "   border: 2px solid #0078ff;"
+        "}"
+
+        );
 }
 
+void Main::on_btnUAV_clicked()
+{
+    homeWin = new Home();
+    homeWin->show();
+    this->close();
+}
+void Main::on_btnUGV_clicked()
+{
+    homeWin = new Home();
+    homeWin->show();
+    this->close();
+}
+
+
+
+/*
 void Main::openFlightController(){
     qDebug() << "openMapGL triggered!";
 
@@ -83,7 +88,7 @@ void Main::openFlightController(){
     flightController->raise();
     flightController->activateWindow();
 }
-
+*/
 
 
 Main::~Main()

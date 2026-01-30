@@ -6,11 +6,9 @@
 #include <QComboBox>
 #include <QUrl>
 #include <QDebug>
-
 #include <QWebEngineProfile>
 #include <QStandardPaths>
 #include <QDir>
-
 #include <QWebChannel>
 #include <QWebEnginePage>
 #include <QTimer>
@@ -22,122 +20,53 @@
 
 static double deg2rad(double d) { return d * M_PI / 180.0; }
 
-void FlightController::addStyleSheet(){
-    // ------------------------------------------------------------
-    // TABLE: başlangıç ayarları
-    // ------------------------------------------------------------
-    ui->tableWaypoints->setColumnCount(7);
-
-    // Eğer .ui'de header yazmadıysan:
-    ui->tableWaypoints->setHorizontalHeaderLabels({
-        "Status", "Latitude", "Longitude", "Altitude(m)", "Distance(m)", "Radius(m)", "Remove"
-    });
-
-    ui->tableWaypoints->setStyleSheet(
-        "QTableWidget {"
-        "   color: white;"
-        "   background-color: #1e1e1e;"
-        "   font-size:13px;"
-        "}"
-        "QHeaderView::section {"
-        "   color: black;"
-        "   background-color: #d0d0d0;"
-        "}"
-        "QLineEdit {"
-        "   color: white;"
-        "   background-color: #1e1e1e;"
-        "}"
-
-        // ComboBox (Status) stilleri
-        "QComboBox {"
-        "   color: white;"
-        "   background-color: #1e1e1e;"
-        "   border: 1px solid #555;"
-        "}"
-        "QComboBox QAbstractItemView {"
-        "   color: white;"
-        "   background-color: #1e1e1e;"
-        "   selection-background-color: #0078ff;"
-        "}"
-        "QComboBox::drop-down {"
-        "   border: none;"
-        "}"
-        );
-
-    // ------------------------------------------------------------
-    // Radius editlenince: wps güncelle + haritayı redraw et
-    // ------------------------------------------------------------
-    ui->tableWaypoints->blockSignals(true);
-
-    ui->btnConnect->setIcon(QIcon(":/img/connect.png"));
-    ui->btnConnect->setIconSize(QSize(70, 42));   // istediğin boyut
-
-    ui->btnSend->setIcon(QIcon(":/img/send.png"));
-    ui->btnSend->setIconSize(QSize(70, 42));
-
-    ui->btnRead->setIcon(QIcon(":/img/read.png"));
-    ui->btnRead->setIconSize(QSize(70, 42));
-    ui->btnConnect->setStyleSheet(
-        "QToolButton {"
-        "   border: 1px solid white;"
-        "   border-radius: 6px;"
-        "   background-color: #2b2b2b;"
-        "}"
-        "QToolButton:hover { border: 2px solid #0078ff; }"
-        "QToolButton:pressed { border: 2px solid #004f9e; }"
-        );
-    ui->btnRead->setStyleSheet(
-        "QToolButton {"
-        "   border: 1px solid white;"
-        "   border-radius: 6px;"
-        "   background-color: #2b2b2b;"
-        "}"
-        "QToolButton:hover { border: 2px solid #0078ff; }"
-        "QToolButton:pressed { border: 2px solid #004f9e; }"
-        );
-
-
-    ui->btnSend->setStyleSheet(
-        "QToolButton {"
-        "   border: 1px solid white;"
-        "   border-radius: 6px;"
-         "   background-color: #2b2b2b;"
-
-        "}"
-        "QToolButton:hover { border: 2px solid #0078ff; }"
-        "QToolButton:pressed { border: 2px solid #004f9e; }"
-        );
-
-    ui->cbSerial->setFixedSize(80, 22);
-
-    ui->cbSerial->setStyleSheet(
-        "QComboBox {"
-        "  color: white;"
-        "  background-color: #2b2b2b;"
-        "  border: 1px solid white;"
-        "  border-radius: 6px;"
-        "  padding-left: 8px;"
-        "}"
-        "QComboBox QAbstractItemView {"
-        "  color: white;"
-        "  background-color: #2b2b2b;"
-        "  selection-background-color: #444;"
-        "}"
-        );
-
-}
-
-
 FlightController::FlightController(QWidget *parent)
     : QWidget(parent),
     ui(new Ui::FlightController),
     bridge(new MapBridge(this))
 {
     ui->setupUi(this);
-
+    setWindowTitle("Flight Controller (Plan)");
+    setWindowIcon(QIcon(":/img/logo.jpeg"));
     addStyleSheet();
-    listSerialPorts();
     serial = new SerialManager(this);
+    listSerialPorts();
+    getTriggers();
+    getMap();
+
+}
+
+FlightController::~FlightController()
+{
+    if (isConnected){
+        serial->send(currentPort, "DISCONNECT\n");
+        isConnected = false;
+    }
+    delete ui;
+}
+
+void FlightController::getMap(){
+
+    QWebEngineProfile *profile = QWebEngineProfile::defaultProfile();
+
+    const QString cachePath =
+        QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation)
+        + "/webengine_cache";
+
+    QDir().mkpath(cachePath);
+
+    profile->setCachePath(cachePath);
+    profile->setPersistentStoragePath(cachePath);
+    profile->setHttpCacheType(QWebEngineProfile::DiskHttpCache);
+    profile->setHttpCacheMaximumSize(500 * 1024 * 1024);
+
+    auto *channel = new QWebChannel(ui->mapView->page());
+    channel->registerObject("bridge", bridge);
+    ui->mapView->page()->setWebChannel(channel);
+    ui->mapView->setUrl(QUrl("qrc:/map.html?pick=1"));
+}
+
+void FlightController::getTriggers(){
     connect(serial, &SerialManager::messageReceived,
             this, &FlightController::onSerialMessage);
 
@@ -180,50 +109,11 @@ FlightController::FlightController(QWidget *parent)
 
     ui->tableWaypoints->blockSignals(false);
 
-    // ------------------------------------------------------------
-    // Haritadan waypoint eklendiğinde tabloya ekle
-    // (MapBridge::waypointAdded sinyali sende vardı)
-    // ------------------------------------------------------------
     connect(bridge, &MapBridge::waypointAdded,
             this, [this](double lat, double lon){
                 appendWaypoint(lat, lon);
                 redrawWaypointsOnMap();
             });
-
-    // ------------------------------------------------------------
-    // WebEngine cache ayarları (senin kullandığın gibi)
-    // ------------------------------------------------------------
-    QWebEngineProfile *profile = QWebEngineProfile::defaultProfile();
-
-    const QString cachePath =
-        QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation)
-        + "/webengine_cache";
-
-    QDir().mkpath(cachePath);
-
-    profile->setCachePath(cachePath);
-    profile->setPersistentStoragePath(cachePath);
-    profile->setHttpCacheType(QWebEngineProfile::DiskHttpCache);
-    profile->setHttpCacheMaximumSize(500 * 1024 * 1024);
-
-    // ------------------------------------------------------------
-    // WebChannel kur
-    // ------------------------------------------------------------
-    auto *channel = new QWebChannel(ui->mapView->page());
-    channel->registerObject("bridge", bridge);
-    ui->mapView->page()->setWebChannel(channel);
-
-    // Haritayı yükle
-    ui->mapView->setUrl(QUrl("qrc:/map.html"));
-}
-
-FlightController::~FlightController()
-{
-    if (isConnected){
-        serial->send(currentPort, "DISCONNECT\n");
-        isConnected = false;
-    }
-    delete ui;
 }
 
 void FlightController::listSerialPorts(){
@@ -412,12 +302,6 @@ void FlightController::onSerialMessage(const QString &port, const QString &msg)
     }
 }
 
-
-
-
-
-
-
 void FlightController::appendWaypoint(double lat, double lon)
 {
     Waypoint wp{};
@@ -434,22 +318,16 @@ void FlightController::appendWaypoint(double lat, double lon)
     }
 
     wps.push_back(wp);
-
-    // tabloya ekle
     const int row = ui->tableWaypoints->rowCount();
     ui->tableWaypoints->insertRow(row);
-
-    // Status combo
     addStatusCombo(row);
 
-    // Hücreler
     ui->tableWaypoints->setItem(row, COL_LAT,    new QTableWidgetItem(QString::number(wp.lat, 'f', 7)));
     ui->tableWaypoints->setItem(row, COL_LON,    new QTableWidgetItem(QString::number(wp.lon, 'f', 7)));
     ui->tableWaypoints->setItem(row, COL_ALT,    new QTableWidgetItem(QString::number(wp.alt, 'f', 1)));
     ui->tableWaypoints->setItem(row, COL_DIST,   new QTableWidgetItem(QString::number(wp.dist, 'f', 1)));
     ui->tableWaypoints->setItem(row, COL_RADIUS, new QTableWidgetItem(QString::number(wp.radius, 'f', 1)));
 
-    // Remove butonu
     addRemoveButton(row);
 }
 
@@ -462,8 +340,6 @@ void FlightController::refreshTable()
 
     for (int i = 0; i < wps.size(); ++i) {
         const auto &wp = wps[i];
-
-        // status combobox
         addStatusCombo(i);
 
         ui->tableWaypoints->setItem(i, COL_LAT,    new QTableWidgetItem(QString::number(wp.lat, 'f', 7)));
@@ -474,7 +350,6 @@ void FlightController::refreshTable()
 
         addRemoveButton(i);
     }
-
     ui->tableWaypoints->blockSignals(false);
 }
 
@@ -482,7 +357,6 @@ void FlightController::addRemoveButton(int row)
 {
     auto *btn = new QPushButton("X", ui->tableWaypoints);
     btn->setCursor(Qt::PointingHandCursor);
-
     btn->setStyleSheet(
         "QPushButton {"
         " font-size:14px;"
@@ -496,7 +370,6 @@ void FlightController::addRemoveButton(int row)
         "QPushButton:hover { background-color:#a33; }"
         "QPushButton:pressed{ background-color:#700; }"
         );
-
     btn->setProperty("row", row);
 
     connect(btn, &QPushButton::clicked, this, [this, btn](){
@@ -514,19 +387,14 @@ void FlightController::removeWaypointRow(int row)
     wps.removeAt(row);
     ui->tableWaypoints->removeRow(row);
 
-    // satırlar kaydı -> row property'leri güncelle
     rebuildStatusCombosRowProperty();
     rebuildRemoveButtonsRowProperty();
-
-    // mesafeleri yeniden hesapla + tabloya doğru kolonlara yaz
     recomputeDistancesAndUpdateTable();
 
-    // hiç waypoint kalmadıysa haritayı temizle
     if (wps.isEmpty()) {
         ui->mapView->page()->runJavaScript("clearWaypointsOnMap();");
         return;
     }
-
     redrawWaypointsOnMap();
 }
 
@@ -559,7 +427,6 @@ void FlightController::recomputeDistancesAndUpdateTable()
         if (auto *radItem = ui->tableWaypoints->item(i, COL_RADIUS))
             radItem->setText(QString::number(wps[i].radius, 'f', 1));
     }
-
     ui->tableWaypoints->blockSignals(false);
 }
 
@@ -575,7 +442,6 @@ void FlightController::rebuildRemoveButtonsRowProperty()
 
 void FlightController::redrawWaypointsOnMap()
 {
-
     QJsonArray arr;
     for (const auto &wp : wps) {
         QJsonArray p;
@@ -594,7 +460,6 @@ void FlightController::redrawWaypointsOnMap()
 void FlightController::addStatusCombo(int row)
 {
     auto *cb = new QComboBox(ui->tableWaypoints);
-
     cb->addItems({
         "WAYPOINT",
         "TAKEOFF",
@@ -607,7 +472,6 @@ void FlightController::addStatusCombo(int row)
         "Doğukan"
     });
 
-    // default
     if (row >= 0 && row < wps.size() && !wps[row].status.isEmpty()) {
         int idx = cb->findText(wps[row].status);
         if (idx >= 0) cb->setCurrentIndex(idx);
@@ -623,8 +487,6 @@ void FlightController::addStatusCombo(int row)
 
         wps[r].status = txt;
 
-        // İstersen haritada WP label’ı status’a göre değiştirebilirsin.
-        // Şimdilik komple redraw yeterli.
         redrawWaypointsOnMap();
     });
 
@@ -639,4 +501,102 @@ void FlightController::rebuildStatusCombosRowProperty()
             cb->setProperty("row", i);
         }
     }
+}
+
+
+
+void FlightController::addStyleSheet(){
+
+    ui->tableWaypoints->setColumnCount(7);
+    ui->tableWaypoints->setHorizontalHeaderLabels({
+        "Status", "Latitude", "Longitude", "Altitude(m)", "Distance(m)", "Radius(m)", "Remove"
+    });
+    ui->tableWaypoints->setStyleSheet(
+        "QTableWidget {"
+        "   color: white;"
+        "   background-color: #1e1e1e;"
+        "   font-size:13px;"
+        "}"
+        "QHeaderView::section {"
+        "   color: black;"
+        "   background-color: #d0d0d0;"
+        "}"
+        "QLineEdit {"
+        "   color: white;"
+        "   background-color: #1e1e1e;"
+        "}"
+
+        // ComboBox (Status) stilleri
+        "QComboBox {"
+        "   color: white;"
+        "   background-color: #1e1e1e;"
+        "   border: 1px solid #555;"
+        "}"
+        "QComboBox QAbstractItemView {"
+        "   color: white;"
+        "   background-color: #1e1e1e;"
+        "   selection-background-color: #0078ff;"
+        "}"
+        "QComboBox::drop-down {"
+        "   border: none;"
+        "}"
+        );
+    ui->tableWaypoints->blockSignals(true);
+
+    ui->btnConnect->setIcon(QIcon(":/img/connect.png"));
+    ui->btnConnect->setIconSize(QSize(85, 45));
+    ui->btnConnect->setStyleSheet(
+        "QToolButton {"
+        "   border: 1px solid white;"
+        "   border-radius: 6px;"
+        "   background-color: #2b2b2b;"
+        "   padding: 2px 2px"
+        "}"
+        "QToolButton:hover { border: 2px solid #0078ff; }"
+        "QToolButton:pressed { border: 2px solid #004f9e; }"
+        );
+
+    ui->btnSend->setIcon(QIcon(":/img/send.png"));
+    ui->btnSend->setIconSize(QSize(85, 45));
+    ui->btnSend->setStyleSheet(
+        "QToolButton {"
+        "   border: 1px solid white;"
+        "   border-radius: 6px;"
+        "   background-color: #2b2b2b;"
+        "   padding: 2px 2px"
+
+        "}"
+        "QToolButton:hover { border: 2px solid #0078ff; }"
+        "QToolButton:pressed { border: 2px solid #004f9e; }"
+        );
+
+
+    ui->btnRead->setIcon(QIcon(":/img/read.png"));
+    ui->btnRead->setIconSize(QSize(85, 45));
+    ui->btnRead->setStyleSheet(
+        "QToolButton {"
+        "   border: 1px solid white;"
+        "   border-radius: 6px;"
+        "   background-color: #2b2b2b;"
+        "   padding: 2px 2px"
+        "}"
+        "QToolButton:hover { border: 2px solid #0078ff; }"
+        "QToolButton:pressed { border: 2px solid #004f9e; }"
+        );
+
+    ui->cbSerial->setFixedSize(80, 28);
+    ui->cbSerial->setStyleSheet(
+        "QComboBox {"
+        "  color: white;"
+        "  background-color: #2b2b2b;"
+        "  border: 1px solid white;"
+        "  border-radius: 6px;"
+        "  padding-left: 8px;"
+        "}"
+        "QComboBox QAbstractItemView {"
+        "  color: white;"
+        "  background-color: #2b2b2b;"
+        "  selection-background-color: #444;"
+        "}"
+        );
 }

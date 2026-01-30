@@ -43,7 +43,8 @@ public:
     void rebuildStatusCombosRowProperty();
     void addStyleSheet();
     void listSerialPorts();
-
+    void getMap();
+    void getTriggers();
 
 private slots:
     void onConnectClicked();

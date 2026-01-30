@@ -15,5 +15,8 @@
         <file>img/send.png</file>
         <file>img/disconnect.png</file>
         <file>img/read.png</file>
+        <file>img/flightplan.png</file>
+        <file>img/flightcontroller.png</file>
+        <file>img/rovercontroller.png</file>
     </qresource>
 </RCC>
