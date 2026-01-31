@@ -37,7 +37,6 @@ bool SerialManager::connectSerial(const QString &portName)
 
     m_serial->setPortName(p);
 
-    // Temel ayarlar
     m_serial->setBaudRate(this->boundRate);
     m_serial->setDataBits(QSerialPort::Data8);
     m_serial->setParity(QSerialPort::NoParity);
@@ -125,16 +124,24 @@ QString SerialManager::receive(const QString &portName)
 
 void SerialManager::onReadyRead()
 {
-    // Gelen tüm veriyi buffer'a ekle
     m_rxBuffer.append(m_serial->readAll());
 
-    // Anlık bildirim: buffer'ı komple gönderiyoruz (istersen satır satır da yaparız)
-    const QString msg = QString::fromUtf8(m_rxBuffer);
-    emit messageReceived(m_serial->portName(), msg);
+    int nl;
+    while ((nl = m_rxBuffer.indexOf('\n')) != -1)
+    {
+        QByteArray line = m_rxBuffer.left(nl);
+        m_rxBuffer.remove(0, nl + 1);
 
-    // Eğer "messageReceived" her tetikte sadece yeni gelen parçayı göndersin istersen,
-    // burada msg yerine readAll parçasını gönderecek şekilde düzenlerim.
+        line = line.trimmed();
+        if (line.isEmpty()) continue;
+
+        // HER EMIT = TEK SATIR
+        emit messageReceived(m_serial->portName(),
+                             QString::fromUtf8(line));
+    }
 }
+
+
 
 void SerialManager::disconnectSerial(QString portName)
 {

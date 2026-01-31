@@ -12,19 +12,10 @@ class SerialManager : public QObject
 public:
     explicit SerialManager(QObject *parent = nullptr);
     ~SerialManager();
-
-    // Porta bağlan
     bool connectSerial(const QString &portName);
-
-    // Mesaj gönder (portName parametreli istedin diye bu şekilde)
     bool send(const QString &portName, const QString &message);
-
-    // Gelen veriyi al (buffer'dan okur, QString döner)
     QString receive(const QString &portName);
-
-    // Bağlantıyı kapatmak istersen
     void disconnectSerial(QString portName);
-
     bool isConnected() const;
     QString currentPortName() const;
     void setPortName(QString portName);
@@ -34,8 +25,6 @@ signals:
     void connected(const QString &portName);
     void disconnected(const QString &portName);
     void errorOccurred(const QString &portName, const QString &errorString);
-
-    // Veri geldikçe tetiklenir
     void messageReceived(const QString &portName, const QString &message);
 
 private slots:

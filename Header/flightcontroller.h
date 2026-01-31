@@ -21,8 +21,6 @@ class FlightController : public QWidget
 {
     Q_OBJECT
 
-
-
 public:
     explicit FlightController(QWidget *parent = nullptr);
     ~FlightController();

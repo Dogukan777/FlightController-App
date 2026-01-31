@@ -26,6 +26,7 @@ FlightController::FlightController(QWidget *parent)
     bridge(new MapBridge(this))
 {
     ui->setupUi(this);
+    setAttribute(Qt::WA_DeleteOnClose, true);
     setWindowTitle("Flight Controller (Plan)");
     setWindowIcon(QIcon(":/img/logo.jpeg"));
     addStyleSheet();
@@ -38,10 +39,8 @@ FlightController::FlightController(QWidget *parent)
 
 FlightController::~FlightController()
 {
-    if (isConnected){
-        serial->send(currentPort, "DISCONNECT\n");
-        isConnected = false;
-    }
+    serial->send(currentPort, "DISCONNECT\n");
+    isConnected = false;
     delete ui;
 }
 
@@ -220,87 +219,77 @@ void FlightController::onSendClicked()
 void FlightController::onSerialMessage(const QString &port, const QString &msg)
 {
     Q_UNUSED(port);
+    const QString line = msg.trimmed();
+    if (line.isEmpty()) return;
 
-    static QString rxAccum;
-    qDebug() << "msg" << msg;
-    rxAccum += msg;
-
-    int nlIndex = -1;
-    while ((nlIndex = rxAccum.indexOf('\n')) != -1)
-    {
-        QString line = rxAccum.left(nlIndex).trimmed();
-        rxAccum.remove(0, nlIndex + 1);
-
-        if (line.isEmpty()) continue;
-
-        ui->btnConnect->setEnabled(true);
-
-        // --------- Senin mevcut TRUE/FALSE kısmın aynı ---------
-        if (line.contains("TRUE")) {
-            isConnected = true;
-            ui->btnConnect->setIcon(QIcon(":/img/disconnect.png"));
-            qDebug() << "STM32: TRUE (connected)";
-        }
-        else if (line.contains("FALSE")) {
-            isConnected = false;
-            ui->btnConnect->setIcon(QIcon(":/img/connect.png"));
-            serial->disconnectSerial(currentPort);
-            qDebug() << "STM32: FALSE (not connected)";
-        }
-
-        else if (line.startsWith("WP_BEGIN,")) {
-            // örn: WP_BEGIN,6
-            wps.clear();
-            wpReading = true;
-            qDebug() << "STM32: " << line;
-        }
-        else if (line == "WP_END") {
-            wpReading = false;
-            qDebug() << "STM32: WP_END -> total:" << wps.size();
-
-            refreshTable();
-            redrawWaypointsOnMap();
-        }
-        else if (wpReading && line.startsWith("WP,")) {
-            // WP,lat,lon,alt,dist,radius,"status"
-
-            Waypoint wp{};
-            wp.status = "WAYPOINT";
-
-            // hızlı parse (status virgül içermiyorsa split yeter)
-            QStringList parts = line.split(',');
-            if (parts.size() >= 6)
-            {
-                bool ok1, ok2, ok3, ok4, ok5;
-                wp.lat    = parts[1].toDouble(&ok1);
-                wp.lon    = parts[2].toDouble(&ok2);
-                wp.alt    = parts[3].toDouble(&ok3);
-                wp.dist   = parts[4].toDouble(&ok4);
-                wp.radius = parts[5].toDouble(&ok5);
-
-                // status "..." içinden çek (en güvenlisi)
-                int q1 = line.indexOf('"');
-                int q2 = line.lastIndexOf('"');
-                if (q1 != -1 && q2 > q1) {
-                    wp.status = line.mid(q1 + 1, q2 - q1 - 1);
-                }
-
-                if (ok1 && ok2 && ok3 && ok4 && ok5) {
-                    wps.push_back(wp);
-                } else {
-                    qDebug() << "WP parse fail:" << line;
-                }
-            }
-            else {
-                qDebug() << "WP format bad:" << line;
-            }
-        }
-        else {
-            // diğer mesajlar
-            qDebug() << "STM32:" << line;
-        }
+    ui->btnConnect->setEnabled(true);
+    qDebug() << "STM32:" << line;
+    if (line == "TRUE") {
+        isConnected = true;
+        ui->btnConnect->setIcon(QIcon(":/img/disconnect.png"));
+        qDebug() << "STM32: TRUE (connected)";
+        return;
     }
+
+    if (line == "FALSE") {
+        isConnected = false;
+        ui->btnConnect->setIcon(QIcon(":/img/connect.png"));
+        serial->disconnectSerial(currentPort);
+        qDebug() << "STM32: FALSE (not connected)";
+        wpReading = false;
+        return;
+    }
+
+    if (line.startsWith("WP_BEGIN,")) {
+        wps.clear();
+        wpReading = true;
+        qDebug() << "STM32:" << line;
+        return;
+    }
+
+    if (line == "WP_END") {
+        wpReading = false;
+        qDebug() << "STM32: WP_END -> total:" << wps.size();
+        refreshTable();
+        redrawWaypointsOnMap();
+        return;
+    }
+
+    if (wpReading && line.startsWith("WP,")) {
+        // Format: WP,lat,lon,alt,dist,radius,"status"
+        QStringList parts = line.split(',');
+
+        if (parts.size() >= 6) {
+            Waypoint wp{};
+            bool ok1=false, ok2=false, ok3=false, ok4=false, ok5=false;
+
+            wp.lat    = parts[1].toDouble(&ok1);
+            wp.lon    = parts[2].toDouble(&ok2);
+            wp.alt    = parts[3].toDouble(&ok3);
+            wp.dist   = parts[4].toDouble(&ok4);
+            wp.radius = parts[5].toDouble(&ok5);
+
+            wp.status = "WAYPOINT";
+            int q1 = line.indexOf('"');
+            int q2 = line.lastIndexOf('"');
+            if (q1 != -1 && q2 > q1) {
+                wp.status = line.mid(q1 + 1, q2 - q1 - 1);
+            }
+
+            if (ok1 && ok2 && ok3 && ok4 && ok5) {
+                wps.push_back(wp);
+            } else {
+                qDebug() << "WP parse fail:" << line;
+            }
+        } else {
+            qDebug() << "WP format bad:" << line;
+        }
+        return;
+    }
+
+    qDebug() << "STM32 (other):" << line;
 }
+
 
 void FlightController::appendWaypoint(double lat, double lon)
 {

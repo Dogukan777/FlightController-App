@@ -57,6 +57,8 @@ qt_add_executable(Kuzgun
 
         UI/home.ui
         UI/flightcontroller.ui
+        Source/HorizonWidget.cpp
+        Header/HorizonWidget.h
 
     )
 target_include_directories(Kuzgun PRIVATE
