@@ -50,6 +50,7 @@ void Home::getTriggers(){
             this, &Home::onConnectClicked);
     connect(serial, &SerialManager::messageReceived,
             this, &Home::onSerialMessage);
+
 }
 void Home::onConnectClicked()
 {
@@ -351,11 +352,7 @@ void Home::listSerialPorts(){
 
 void Home::on_btnFC_clicked()
 {
-    if (isConnected){
-        ui->btnConnect->setIcon(QIcon(":/img/disconnect.png"));
-        serial->send(currentPort, "DISCONNECT\n");
-    }
-    fcWin = new FlightController();
+    fcWin = new FlightController(serial,wps);
     fcWin->show();
 }
 

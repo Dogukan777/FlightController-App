@@ -22,7 +22,7 @@ class FlightController : public QWidget
     Q_OBJECT
 
 public:
-    explicit FlightController(QWidget *parent = nullptr);
+    explicit FlightController(SerialManager* serialPtr,const QVector<Waypoint>& wpList, QWidget *parent = nullptr);
     ~FlightController();
 
     QVector<Waypoint> wps;
@@ -45,16 +45,13 @@ public:
     void getTriggers();
 
 private slots:
-    void onConnectClicked();
     void onSendClicked();
     void onReadClicked();
-    void onSerialMessage(const QString &port, const QString &msg);
 
 private:
     Ui::FlightController *ui;
     MapBridge *bridge;
-    SerialManager *serial;
-    bool isConnected = false;
+    SerialManager* serial;
     bool wpReading = false;
     QString currentPort;
     QString rxBuffer;

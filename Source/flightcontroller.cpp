@@ -20,27 +20,26 @@
 
 static double deg2rad(double d) { return d * M_PI / 180.0; }
 
-FlightController::FlightController(QWidget *parent)
+FlightController::FlightController(SerialManager* serialPtr,const QVector<Waypoint>& wpList, QWidget *parent)
     : QWidget(parent),
     ui(new Ui::FlightController),
-    bridge(new MapBridge(this))
+    bridge(new MapBridge(this)),
+    serial(serialPtr),
+    wps(wpList)
 {
     ui->setupUi(this);
     setAttribute(Qt::WA_DeleteOnClose, true);
     setWindowTitle("Flight Controller (Plan)");
     setWindowIcon(QIcon(":/img/logo.jpeg"));
     addStyleSheet();
-    serial = new SerialManager(this);
-    listSerialPorts();
     getTriggers();
     getMap();
-
+    //listSerialPorts();
 }
 
 FlightController::~FlightController()
 {
     serial->send(currentPort, "DISCONNECT\n");
-    isConnected = false;
     delete ui;
 }
 
@@ -66,11 +65,6 @@ void FlightController::getMap(){
 }
 
 void FlightController::getTriggers(){
-    connect(serial, &SerialManager::messageReceived,
-            this, &FlightController::onSerialMessage);
-
-    connect(ui->btnConnect, &QToolButton::clicked,
-            this, &FlightController::onConnectClicked);
 
     connect(ui->btnSend, &QToolButton::clicked,
             this, &FlightController::onSendClicked);
@@ -115,22 +109,8 @@ void FlightController::getTriggers(){
             });
 }
 
-void FlightController::listSerialPorts(){
-    ui->cbSerial->clear();
 
-    QList<QSerialPortInfo> ports = QSerialPortInfo::availablePorts();
 
-    if (ports.isEmpty())
-    {
-        ui->cbSerial->addItem("No COM Ports");
-        return;
-    }
-
-    for (const QSerialPortInfo &port : ports)
-    {
-        ui->cbSerial->addItem(port.portName());
-    }
-}
 double FlightController::haversineMeters(double lat1, double lon1, double lat2, double lon2)
 {
     const double R = 6371000.0; // metre
@@ -147,49 +127,25 @@ double FlightController::haversineMeters(double lat1, double lon1, double lat2, 
 }
 
 
-void FlightController::onConnectClicked()
-{
-    const QString portName = ui->cbSerial->currentText().trimmed();
-    //qDebug() << "Port:"<< portName;
-    serial->clearRx();
-    if (portName.isEmpty()) {
-        qDebug() << "Port seçilmedi!";
-        return;
-    }
-    if (!serial->connectSerial(portName)) {
-        qDebug() << "Serial bağlantı kurulamadı!";
-        return;
-    }else if(!isConnected){
-        currentPort = portName;
-        serial->send(portName, "CONNECT\n");
-    }else{
-        serial->send(currentPort, "DISCONNECT\n");
-    }
-}
 
 void FlightController::onReadClicked()
 {
-    const QString portName = ui->cbSerial->currentText().trimmed();
-    if (portName.isEmpty()) return;
-
-    if (!isConnected) {
-        qDebug() << "READ ignored: not connected";
+    if (!serial->isConnected()) {
+        qDebug() << "SEND ignored: not connected";
         return;
     }
-    wpReading = false;
-    wps.clear();
-    serial->clearRx();
-    serial->send(currentPort, "READ\n");
+    refreshTable();
+    redrawWaypointsOnMap();
 }
 
 void FlightController::onSendClicked()
 {
-    if (!isConnected) {
+    if (!serial->isConnected()) {
         qDebug() << "SEND ignored: not connected";
         return;
     }
-
-    const QString portName = ui->cbSerial->currentText().trimmed();
+    const QString portName = serial->currentPortName();
+    //const QString portName = ui->cbSerial->currentText().trimmed();
     if (portName.isEmpty() || wps.isEmpty()) return;
 
     serial->clearRx();
@@ -216,79 +172,7 @@ void FlightController::onSendClicked()
     serial->send(currentPort, "WP_END\n");
 }
 
-void FlightController::onSerialMessage(const QString &port, const QString &msg)
-{
-    Q_UNUSED(port);
-    const QString line = msg.trimmed();
-    if (line.isEmpty()) return;
 
-    ui->btnConnect->setEnabled(true);
-    qDebug() << "STM32:" << line;
-    if (line == "TRUE") {
-        isConnected = true;
-        ui->btnConnect->setIcon(QIcon(":/img/disconnect.png"));
-        qDebug() << "STM32: TRUE (connected)";
-        return;
-    }
-
-    if (line == "FALSE") {
-        isConnected = false;
-        ui->btnConnect->setIcon(QIcon(":/img/connect.png"));
-        serial->disconnectSerial(currentPort);
-        qDebug() << "STM32: FALSE (not connected)";
-        wpReading = false;
-        return;
-    }
-
-    if (line.startsWith("WP_BEGIN,")) {
-        wps.clear();
-        wpReading = true;
-        qDebug() << "STM32:" << line;
-        return;
-    }
-
-    if (line == "WP_END") {
-        wpReading = false;
-        qDebug() << "STM32: WP_END -> total:" << wps.size();
-        refreshTable();
-        redrawWaypointsOnMap();
-        return;
-    }
-
-    if (wpReading && line.startsWith("WP,")) {
-        // Format: WP,lat,lon,alt,dist,radius,"status"
-        QStringList parts = line.split(',');
-
-        if (parts.size() >= 6) {
-            Waypoint wp{};
-            bool ok1=false, ok2=false, ok3=false, ok4=false, ok5=false;
-
-            wp.lat    = parts[1].toDouble(&ok1);
-            wp.lon    = parts[2].toDouble(&ok2);
-            wp.alt    = parts[3].toDouble(&ok3);
-            wp.dist   = parts[4].toDouble(&ok4);
-            wp.radius = parts[5].toDouble(&ok5);
-
-            wp.status = "WAYPOINT";
-            int q1 = line.indexOf('"');
-            int q2 = line.lastIndexOf('"');
-            if (q1 != -1 && q2 > q1) {
-                wp.status = line.mid(q1 + 1, q2 - q1 - 1);
-            }
-
-            if (ok1 && ok2 && ok3 && ok4 && ok5) {
-                wps.push_back(wp);
-            } else {
-                qDebug() << "WP parse fail:" << line;
-            }
-        } else {
-            qDebug() << "WP format bad:" << line;
-        }
-        return;
-    }
-
-    qDebug() << "STM32 (other):" << line;
-}
 
 
 void FlightController::appendWaypoint(double lat, double lon)
@@ -532,19 +416,6 @@ void FlightController::addStyleSheet(){
         );
     ui->tableWaypoints->blockSignals(true);
 
-    ui->btnConnect->setIcon(QIcon(":/img/connect.png"));
-    ui->btnConnect->setIconSize(QSize(85, 45));
-    ui->btnConnect->setStyleSheet(
-        "QToolButton {"
-        "   border: 1px solid white;"
-        "   border-radius: 6px;"
-        "   background-color: #2b2b2b;"
-        "   padding: 2px 2px"
-        "}"
-        "QToolButton:hover { border: 2px solid #0078ff; }"
-        "QToolButton:pressed { border: 2px solid #004f9e; }"
-        );
-
     ui->btnSend->setIcon(QIcon(":/img/send.png"));
     ui->btnSend->setIconSize(QSize(85, 45));
     ui->btnSend->setStyleSheet(
@@ -573,6 +444,19 @@ void FlightController::addStyleSheet(){
         "QToolButton:pressed { border: 2px solid #004f9e; }"
         );
 
+
+    /*ui->btnConnect->setIcon(QIcon(":/img/connect.png"));
+    ui->btnConnect->setIconSize(QSize(85, 45));
+    ui->btnConnect->setStyleSheet(
+        "QToolButton {"
+        "   border: 1px solid white;"
+        "   border-radius: 6px;"
+        "   background-color: #2b2b2b;"
+        "   padding: 2px 2px"
+        "}"
+        "QToolButton:hover { border: 2px solid #0078ff; }"
+        "QToolButton:pressed { border: 2px solid #004f9e; }"
+        );
     ui->cbSerial->setFixedSize(80, 28);
     ui->cbSerial->setStyleSheet(
         "QComboBox {"
@@ -587,5 +471,5 @@ void FlightController::addStyleSheet(){
         "  background-color: #2b2b2b;"
         "  selection-background-color: #444;"
         "}"
-        );
+        );*/
 }

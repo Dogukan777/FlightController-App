@@ -98,22 +98,6 @@
    <property name="frameShadow">
     <enum>QFrame::Shadow::Raised</enum>
    </property>
-   <widget class="QToolButton" name="btnConnect">
-    <property name="geometry">
-     <rect>
-      <x>1185</x>
-      <y>6</y>
-      <width>85</width>
-      <height>45</height>
-     </rect>
-    </property>
-    <property name="styleSheet">
-     <string notr="true">background-color:white</string>
-    </property>
-    <property name="text">
-     <string/>
-    </property>
-   </widget>
    <widget class="QToolButton" name="btnSend">
     <property name="geometry">
      <rect>
@@ -128,16 +112,6 @@
     </property>
     <property name="text">
      <string/>
-    </property>
-   </widget>
-   <widget class="QComboBox" name="cbSerial">
-    <property name="geometry">
-     <rect>
-      <x>1090</x>
-      <y>11</y>
-      <width>76</width>
-      <height>32</height>
-     </rect>
     </property>
    </widget>
    <widget class="QToolButton" name="btnRead">
