@@ -89,27 +89,40 @@ void Home::onSerialMessage(const QString &port, const QString &msg)
             wpRequestedOnce = true;
             wpReading = false;
             wps.clear();
-            serial->send(currentPort, "READ\n");
+            serial->send(currentPort, "READ\n");   // ✅ sadece WP
         }
 
         if (!dataRequestedOnce) {
             dataRequestedOnce = true;
             serial->send(currentPort, "DATA\n");
         }
+
+        // ✅ GPS stream başlat: sadece 1 kere
+        if (!gpsRequestedOnce) {
+            gpsRequestedOnce = true;
+            serial->send(currentPort, "GPS\n");
+        }
+
         return;
     }
+
 
     if (line == "FALSE") {
         isConnected = false;
         ui->btnConnect->setIcon(QIcon(":/img/connect.png"));
+
         serial->send(currentPort, "DATA_STOP\n");
+        serial->send(currentPort, "GPS_STOP\n");   // ✅ temiz kapat
+
         serial->disconnectSerial(currentPort);
 
         wpRequestedOnce = false;
         dataRequestedOnce = false;
+        gpsRequestedOnce = false;                  // ✅ reset
         wpReading = false;
         return;
     }
+
 
     if (line.startsWith("WP_BEGIN,")) {
         wps.clear();
@@ -124,6 +137,52 @@ void Home::onSerialMessage(const QString &port, const QString &msg)
         redrawWaypointsOnMap();
         return;
     }
+    if (line.startsWith("GPS,")) {
+        QStringList parts = line.split(',');
+        if (parts.size() >= 3 && parts[1] == "NOFIX") {
+            int sats = parts[2].toInt();
+            hasGpsFix = false;
+            qDebug().noquote() << QString("[GPS] NO FIX  SATS=%1").arg(sats);
+            return;
+        }
+
+        if (parts.size() >= 3) {
+            bool okLat = false, okLon = false;
+            double lat = parts[1].toDouble(&okLat);
+            double lon = parts[2].toDouble(&okLon);
+
+            int fix  = -1;
+            int sats = -1;
+            if (parts.size() >= 5) {
+                fix  = parts[3].toInt();
+                sats = parts[4].toInt();
+            }
+
+            if (okLat && okLon) {
+                qDebug().noquote()
+                << QString("[GPS] LAT=%1  LON=%2  FIX=%3  SATS=%4")
+                        .arg(lat, 0, 'f', 6)
+                        .arg(lon, 0, 'f', 6)
+                        .arg(fix)
+                        .arg(sats);
+
+                lastGpsLat = lat;
+                lastGpsLon = lon;
+                hasGpsFix  = (fix > 0);
+                if (hasGpsFix) {
+                    updateUavOnMap(lat, lon);
+                }
+
+            } else {
+                qDebug() << "GPS parse error:" << line;
+            }
+
+        } else {
+            qDebug() << "Bad GPS format:" << line;
+        }
+        return;
+    }
+
 
     if (wpReading && line.startsWith("WP,")) {
         Waypoint wp{};
@@ -264,8 +323,29 @@ void Home::getMap(){
     ui->mapView->page()->setWebChannel(channel);
 
     ui->mapView->setUrl(QUrl("qrc:/map.html?pick=0"));
-
+    connect(ui->mapView, &QWebEngineView::loadFinished, this, [this](bool ok){
+        mapReady = ok;
+        if (mapReady && hasGpsFix) {
+            updateUavOnMap(lastGpsLat, lastGpsLon);
+        }
+    });
 }
+void Home::updateUavOnMap(double lat, double lon, bool pan)
+{
+    if (!mapReady) return;
+
+    // güvenlik: NaN vs
+    if (!std::isfinite(lat) || !std::isfinite(lon)) return;
+
+    // Leaflet JS: setUav(lat,lng) zaten marker'ı taşır + panTo yapar
+    // Eğer pan istemezsen JS'te ayrı fonksiyon da yazabiliriz.
+    const QString js = QString("setUav(%1, %2);")
+                           .arg(lat, 0, 'f', 6)
+                           .arg(lon, 0, 'f', 6);
+
+    ui->mapView->page()->runJavaScript(js);
+}
+
 void Home::addStyleSheet()
 {
     ui->btnFC->setText("Flight Plan");

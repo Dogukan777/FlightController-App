@@ -32,7 +32,7 @@ private slots:
 
 private:
     bool ensureConnectedTo(const QString &portName);
-    qint32 boundRate = 115200;
+    qint32 boundRate = 9600;
 
 private:
     QSerialPort *m_serial;

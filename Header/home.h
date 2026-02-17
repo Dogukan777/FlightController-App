@@ -48,6 +48,14 @@ private:
     bool yawTimerStarted = false;
     HorizonWidget *m_horizon = nullptr;
     HorizonWidget *horizon = nullptr;
+    bool gpsRequestedOnce = false;
+    double lastGpsLat = 0.0;
+    double lastGpsLon = 0.0;
+    bool   hasGpsFix  = false;
+    bool   mapReady   = false;
+
+    void updateUavOnMap(double lat, double lon, bool pan = true);
+
 
 
 private slots:

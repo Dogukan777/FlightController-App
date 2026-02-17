@@ -122,7 +122,7 @@
     iconAnchor: [32, 32]
   });
 
-  const marker = L.marker([uavLat, uavLng], { icon: uavIcon }).addTo(map);
+  let uavMarker = null;
 
   /* -------------------- ZOOM BUTTONS -------------------- */
   function zoomIn() {
@@ -135,9 +135,17 @@
   /* Qt'den UAV konumu güncellemek için */
   function setUav(lat, lng) {
     uavLat = lat; uavLng = lng;
-    marker.setLatLng([lat, lng]);
+
+    // ✅ ilk GPS geldiğinde marker oluştur
+    if (!uavMarker) {
+      uavMarker = L.marker([lat, lng], { icon: uavIcon }).addTo(map);
+    } else {
+      uavMarker.setLatLng([lat, lng]);
+    }
+
     map.panTo([lat, lng], { animate: false });
   }
+
 
   /* -------------------- FIX SIZE -------------------- */
   function fixSize() { map.invalidateSize(true); }
