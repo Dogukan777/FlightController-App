@@ -79,29 +79,15 @@ void Home::onSerialMessage(const QString &port, const QString &msg)
     if (line.isEmpty()) return;
 
     ui->btnConnect->setEnabled(true);
-    //qDebug() << "STM32:" << line;
+    qDebug() << "STM32:" << line;
 
     if (line == "TRUE") {
         isConnected = true;
         ui->btnConnect->setIcon(QIcon(":/img/disconnect.png"));
 
-        if (!wpRequestedOnce) {
-            wpRequestedOnce = true;
-            wpReading = false;
-            wps.clear();
-            serial->send(currentPort, "READ\n");   // ✅ sadece WP
-        }
-
-        if (!dataRequestedOnce) {
-            dataRequestedOnce = true;
-            serial->send(currentPort, "DATA\n");
-        }
-
-        // ✅ GPS stream başlat: sadece 1 kere
-        if (!gpsRequestedOnce) {
-            gpsRequestedOnce = true;
-            serial->send(currentPort, "GPS\n");
-        }
+        QTimer::singleShot(50,  this, [this]{ serial->send(currentPort, "READ\n"); });
+        QTimer::singleShot(200, this, [this]{ serial->send(currentPort, "DATA\n"); });
+        QTimer::singleShot(350, this, [this]{ serial->send(currentPort, "GPS\n"); });
 
         return;
     }
@@ -112,13 +98,13 @@ void Home::onSerialMessage(const QString &port, const QString &msg)
         ui->btnConnect->setIcon(QIcon(":/img/connect.png"));
 
         serial->send(currentPort, "DATA_STOP\n");
-        serial->send(currentPort, "GPS_STOP\n");   // ✅ temiz kapat
+        serial->send(currentPort, "GPS_STOP\n");
 
         serial->disconnectSerial(currentPort);
 
         wpRequestedOnce = false;
         dataRequestedOnce = false;
-        gpsRequestedOnce = false;                  // ✅ reset
+        gpsRequestedOnce = false;
         wpReading = false;
         return;
     }
@@ -147,27 +133,32 @@ void Home::onSerialMessage(const QString &port, const QString &msg)
         }
 
         if (parts.size() >= 3) {
-            bool okLat = false, okLon = false;
+            bool okLat = false, okLon = false, okAlt = false, okSpeed = false;
             double lat = parts[1].toDouble(&okLat);
             double lon = parts[2].toDouble(&okLon);
-
+            double alt = parts[3].toDouble(&okAlt);
+            double speed = parts[4].toDouble(&okSpeed);
             int fix  = -1;
             int sats = -1;
             if (parts.size() >= 5) {
-                fix  = parts[3].toInt();
-                sats = parts[4].toInt();
+                fix  = parts[5].toInt();
+                sats = parts[6].toInt();
             }
 
             if (okLat && okLon) {
                 qDebug().noquote()
-                << QString("[GPS] LAT=%1  LON=%2  FIX=%3  SATS=%4")
-                        .arg(lat, 0, 'f', 6)
-                        .arg(lon, 0, 'f', 6)
+                << QString("[GPS] LAT=%1  LON=%2 ALT=%3 SPEED=%4 FIX=%5  SATS=%6")
+                        .arg(lat, 0, 'f', 7)
+                        .arg(lon, 0, 'f', 7)
+                        .arg(alt,0,'f',1)
+                        .arg(speed,0,'f',1)
                         .arg(fix)
                         .arg(sats);
 
                 lastGpsLat = lat;
                 lastGpsLon = lon;
+                ui->StSpeed->setText(QString::number(speed, 'f', 2) + "km/h");
+                ui->StAlt->setText(QString::number(alt, 'f', 2) +" m ");
                 hasGpsFix  = (fix > 0);
                 if (hasGpsFix) {
                     updateUavOnMap(lat, lon);
@@ -410,6 +401,27 @@ void Home::addStyleSheet()
         "QToolButton:hover { border: 2px solid #0078ff; }"
         "QToolButton:pressed { border: 2px solid #004f9e; }"
         );
+    ui->StreamData->setStyleSheet(
+        "#StreamData {"
+        "   border: 1px solid #cdcdcd;"
+        "   border-radius: 6px;"
+        "   background-color: #1e1e1e;"
+        "}"
+        "#lblAlt {"
+        "  color: white;"
+        "}"
+        "#lblSpeed {"
+        "  color: white;"
+        "}"
+        "#StSpeed {"
+        "  color: white;"
+        "}"
+        "#StAlt {"
+        "  color: white;"
+        "}"
+        );
+    ui->StSpeed->setText("0 km/h");
+    ui->StAlt->setText("0 m");
 
 }
 
