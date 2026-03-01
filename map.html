@@ -49,6 +49,16 @@
 
   .btn:hover { background: #0078ff; }
   .btn.pickOn { background: #00b35a; }
+  .wp-label {
+    background: rgba(30,30,30,0.85);
+    color: white;
+    border: 1px solid #777;
+    border-radius: 4px;
+    padding: 1px 4px;
+    font-size: 14px;
+    font-weight: 600;
+    box-shadow: none;
+  }
   </style>
   </head>
 
@@ -81,7 +91,7 @@
   let wpLine = L.polyline([], { weight: 3 }).addTo(map);
   let wpCount = 0;
   let wpCircleLayer = L.layerGroup().addTo(map);
-  const circleRenderer = L.svg({ padding: 0.5 });
+  const circleRenderer = L.canvas({ padding: 0.5 });
 
 
   map.setView([uavLat, uavLng], 16);
@@ -123,6 +133,7 @@
   });
 
   let uavMarker = null;
+  let follow = true;
 
   /* -------------------- ZOOM BUTTONS -------------------- */
   function zoomIn() {
@@ -133,17 +144,18 @@
   }
 
   /* Qt'den UAV konumu güncellemek için */
-  function setUav(lat, lng) {
+  function setUav(lat, lng, pan=true) {
     uavLat = lat; uavLng = lng;
 
-    // ✅ ilk GPS geldiğinde marker oluştur
     if (!uavMarker) {
       uavMarker = L.marker([lat, lng], { icon: uavIcon }).addTo(map);
     } else {
       uavMarker.setLatLng([lat, lng]);
     }
 
-    map.panTo([lat, lng], { animate: false });
+    if (pan && follow) {
+      map.panTo([lat, lng], { animate: false });
+    }
   }
 
 
@@ -192,20 +204,37 @@
     }
   }
 
-  function redrawWaypointsFromList(coordsArray) {
-    clearWaypointsOnMap();
+function redrawWaypointsFromList(coordsArray) {
+  clearWaypointsOnMap();
+  if (!coordsArray || coordsArray.length === 0) return;
 
-    if (!coordsArray || coordsArray.length === 0) return;
+  const latlngs = [];
 
-    for (let i = 0; i < coordsArray.length; i++) {
-      const lat = coordsArray[i][0];
-      const lng = coordsArray[i][1];
-      const rad = coordsArray[i][2] ?? 50;
+  for (let i = 0; i < coordsArray.length; i++) {
+    const lat = coordsArray[i][0];
+    const lng = coordsArray[i][1];
+    const rad = coordsArray[i][2] ?? 50;
 
-      addWaypointMarker(lat, lng);
-      addRadiusCircle(lat, lng, rad);
-    }
+    latlngs.push([lat, lng]);
+
+    const m = L.marker([lat, lng]).addTo(wpLayer);
+
+    m.bindTooltip(
+      "WP " + (i + 1),
+      {
+        permanent: true,
+        direction: "top",
+        offset: [0, -10],
+        opacity: 0.85,
+        className: "wp-label"
+      }
+    );
+
+    addRadiusCircle(lat, lng, rad);
   }
+
+  wpLine.setLatLngs(latlngs);
+}
 
   function addRadiusCircle(lat, lng, radiusMeters) {
     L.circle([lat, lng], {

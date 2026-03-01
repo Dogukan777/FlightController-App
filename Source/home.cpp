@@ -324,15 +324,12 @@ void Home::getMap(){
 void Home::updateUavOnMap(double lat, double lon, bool pan)
 {
     if (!mapReady) return;
-
-    // güvenlik: NaN vs
     if (!std::isfinite(lat) || !std::isfinite(lon)) return;
 
-    // Leaflet JS: setUav(lat,lng) zaten marker'ı taşır + panTo yapar
-    // Eğer pan istemezsen JS'te ayrı fonksiyon da yazabiliriz.
-    const QString js = QString("setUav(%1, %2);")
-                           .arg(lat, 0, 'f', 6)
-                           .arg(lon, 0, 'f', 6);
+    const QString js = QString("setUav(%1, %2, %3);")
+                           .arg(lat, 0, 'f', 7)
+                           .arg(lon, 0, 'f', 7)
+                           .arg(pan ? "true" : "false");
 
     ui->mapView->page()->runJavaScript(js);
 }
