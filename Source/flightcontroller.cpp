@@ -39,18 +39,14 @@ FlightController::FlightController(SerialManager* serialPtr,const QVector<Waypoi
 
 FlightController::~FlightController()
 {
-    serial->send(currentPort, "DISCONNECT\n");
     delete ui;
 }
 
-void FlightController::getMap(){
-
+void FlightController::getMap() {
     QWebEngineProfile *profile = QWebEngineProfile::defaultProfile();
-
     const QString cachePath =
         QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation)
         + "/webengine_cache";
-
     QDir().mkpath(cachePath);
 
     profile->setCachePath(cachePath);
@@ -61,6 +57,13 @@ void FlightController::getMap(){
     auto *channel = new QWebChannel(ui->mapView->page());
     channel->registerObject("bridge", bridge);
     ui->mapView->page()->setWebChannel(channel);
+    connect(ui->mapView, &QWebEngineView::loadFinished, this, [this](bool ok){
+        m_mapReady = ok;
+        if (m_mapReady && m_drawEnabled) {
+            redrawWaypointsOnMap();
+        }
+    });
+
     ui->mapView->setUrl(QUrl("qrc:/map.html?pick=1"));
 }
 
@@ -134,8 +137,9 @@ void FlightController::onReadClicked()
         qDebug() << "SEND ignored: not connected";
         return;
     }
+    m_drawEnabled = true;
     refreshTable();
-    redrawWaypointsOnMap();
+    if (m_mapReady) redrawWaypointsOnMap();
 }
 
 void FlightController::onSendClicked()
@@ -145,13 +149,12 @@ void FlightController::onSendClicked()
         return;
     }
     const QString portName = serial->currentPortName();
-    //const QString portName = ui->cbSerial->currentText().trimmed();
     if (portName.isEmpty() || wps.isEmpty()) return;
 
     serial->clearRx();
 
     // --- WP upload protokolü ---
-    serial->send(currentPort, QString("WP_BEGIN,%1\n").arg(wps.size()));
+    serial->send(portName, QString("WP_BEGIN,%1\n").arg(wps.size()));
 
     for (const Waypoint &wp : wps)
     {
@@ -165,11 +168,12 @@ void FlightController::onSendClicked()
                            .arg(wp.dist,   0, 'f', 2)
                            .arg(wp.radius, 0, 'f', 2)
                            .arg(status);
-
-        serial->send(currentPort, line);
+        serial->send(portName, line);
     }
 
-    serial->send(currentPort, "WP_END\n");
+
+    serial->send(portName, "WP_END\n");
+    emit waypointsUpdated(wps);
 }
 
 
@@ -315,6 +319,9 @@ void FlightController::rebuildRemoveButtonsRowProperty()
 
 void FlightController::redrawWaypointsOnMap()
 {
+    if (!m_drawEnabled) return; // Read'e basmadan asla çizme
+    if (!m_mapReady)    return; // harita hazır değilse JS gönderme
+
     QJsonArray arr;
     for (const auto &wp : wps) {
         QJsonArray p;
@@ -326,10 +333,8 @@ void FlightController::redrawWaypointsOnMap()
 
     const QString json = QString::fromUtf8(QJsonDocument(arr).toJson(QJsonDocument::Compact));
     const QString js = QString("redrawWaypointsFromList(%1);").arg(json);
-
     ui->mapView->page()->runJavaScript(js);
 }
-
 void FlightController::addStatusCombo(int row)
 {
     auto *cb = new QComboBox(ui->tableWaypoints);

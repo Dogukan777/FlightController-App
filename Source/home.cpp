@@ -1,4 +1,5 @@
 #include "home.h"
+#include "settings.h"
 #include "ui_home.h"
 
 #include <QTableWidgetItem>
@@ -43,72 +44,85 @@ Home::Home(QWidget *parent)
     listSerialPorts();
     getMap();
     getTriggers();
-
 }
+
 void Home::getTriggers(){
     connect(ui->btnConnect, &QToolButton::clicked,
             this, &Home::onConnectClicked);
     connect(serial, &SerialManager::messageReceived,
             this, &Home::onSerialMessage);
+    portScanTimer = new QTimer(this);
+    connect(portScanTimer, &QTimer::timeout, this, &Home::refreshSerialPorts);
+
+    portScanTimer->start(500);
+    pingTimer = new QTimer(this);
+    connect(pingTimer, &QTimer::timeout, this, &Home::sendPing);
+
+    linkWatchdogTimer = new QTimer(this);
+    connect(linkWatchdogTimer, &QTimer::timeout, this, [this]() {
+        if (!isConnected) return;
+        if (!rxWatchdog.isValid()) return;
+
+        if (rxWatchdog.elapsed() > 5000) {   // 3 saniye veri yoksa kopmuş say
+            qDebug() << "Watchdog: STM32 veri göndermiyor, bağlantı düşürüldü.";
+            handleDisconnectedState();
+        }
+    });
+    linkWatchdogTimer->start(500);
 
 }
 void Home::onConnectClicked()
 {
     const QString portName = ui->cbSerial->currentText().trimmed();
-    qDebug() << "Port:"<< portName;
-    serial->clearRx();
-    if (portName.isEmpty()) {
-        qDebug() << "Port seçilmedi!";
+    if (portName.isEmpty() || portName == "No COM Ports")
         return;
-    }
-    if (!serial->connectSerial(portName)) {
-        qDebug() << "Serial bağlantı kurulamadı!";
-        return;
-    }else if(!isConnected){
+
+    if (!isConnected) {
+        if (!serial->connectSerial(portName)) {
+            qDebug() << "Serial bağlantı kurulamadı!";
+            return;
+        }
+
         currentPort = portName;
-        serial->send(portName, "CONNECT\n");
-    }else{
+        serial->clearRx();
+        serial->send(currentPort, "CONNECT\n");
+    } else {
+        qDebug() << "Sending DISCONNECT to" << currentPort;
         serial->send(currentPort, "DISCONNECT\n");
+
+        QTimer::singleShot(500, this, [this]() {
+            if (isConnected) {
+                qDebug() << "FALSE gelmedi, local disconnect uygulanıyor.";
+                handleDisconnectedState();
+            }
+        });
     }
 }
 void Home::onSerialMessage(const QString &port, const QString &msg)
 {
     Q_UNUSED(port);
-
     const QString line = msg.trimmed();
     if (line.isEmpty()) return;
+    if (!rxWatchdog.isValid())
+        rxWatchdog.start();
+    else
+        rxWatchdog.restart();
 
-    ui->btnConnect->setEnabled(true);
-    qDebug() << "STM32:" << line;
+    //qDebug() << "STM32:" << line;
 
     if (line == "TRUE") {
         isConnected = true;
         ui->btnConnect->setIcon(QIcon(":/img/disconnect.png"));
-
-        QTimer::singleShot(50,  this, [this]{ serial->send(currentPort, "READ\n"); });
-        QTimer::singleShot(200, this, [this]{ serial->send(currentPort, "DATA\n"); });
-        QTimer::singleShot(350, this, [this]{ serial->send(currentPort, "GPS\n"); });
-
+        if (!pingTimer->isActive())
+            pingTimer->start(1000); // her 1 saniyede bir PING
         return;
     }
-
 
     if (line == "FALSE") {
-        isConnected = false;
-        ui->btnConnect->setIcon(QIcon(":/img/connect.png"));
-
-        serial->send(currentPort, "DATA_STOP\n");
-        serial->send(currentPort, "GPS_STOP\n");
-
-        serial->disconnectSerial(currentPort);
-
-        wpRequestedOnce = false;
-        dataRequestedOnce = false;
-        gpsRequestedOnce = false;
-        wpReading = false;
+        qDebug() << "STM32 normal disconnect gönderdi.";
+        handleDisconnectedState();
         return;
     }
-
 
     if (line.startsWith("WP_BEGIN,")) {
         wps.clear();
@@ -132,20 +146,16 @@ void Home::onSerialMessage(const QString &port, const QString &msg)
             return;
         }
 
-        if (parts.size() >= 3) {
+        if (parts.size() >= 7) {
             bool okLat = false, okLon = false, okAlt = false, okSpeed = false;
             double lat = parts[1].toDouble(&okLat);
             double lon = parts[2].toDouble(&okLon);
             double alt = parts[3].toDouble(&okAlt);
             double speed = parts[4].toDouble(&okSpeed);
-            int fix  = -1;
-            int sats = -1;
-            if (parts.size() >= 5) {
-                fix  = parts[5].toInt();
-                sats = parts[6].toInt();
-            }
+            int fix      = parts[5].toInt();
+            int sats     = parts[6].toInt();
 
-            if (okLat && okLon) {
+            if (okLat && okLon && okAlt && okSpeed) {
                 qDebug().noquote()
                 << QString("[GPS] LAT=%1  LON=%2 ALT=%3 SPEED=%4 FIX=%5  SATS=%6")
                         .arg(lat, 0, 'f', 7)
@@ -157,8 +167,8 @@ void Home::onSerialMessage(const QString &port, const QString &msg)
 
                 lastGpsLat = lat;
                 lastGpsLon = lon;
-                ui->StSpeed->setText(QString::number(speed, 'f', 2) + "km/h");
-                ui->StAlt->setText(QString::number(alt, 'f', 2) +" m ");
+                ui->StSpeed->setText(QString::number(speed, 'f', 0) + " km/h");
+                ui->StAlt->setText(QString::number(alt, 'f', 0) +" m ");
                 hasGpsFix  = (fix > 0);
                 if (hasGpsFix) {
                     updateUavOnMap(lat, lon);
@@ -259,11 +269,11 @@ void Home::onSerialMessage(const QString &port, const QString &msg)
                     m_horizon->setAttitude(rollDeg, pitchDeg);
                 }
                 // --------- PRINT ---------
-                /*qDebug().noquote()
+                qDebug().noquote()
                     << QString("ROLL=%1°  PITCH=%2°  YAW=%3°")
                            .arg(rollDeg, 7, 'f', 2)
                            .arg(pitchDeg, 7, 'f', 2)
-                           .arg(yawDeg, 7, 'f', 2);*/
+                           .arg(yawDeg, 7, 'f', 2);
             }
             else {
                 qDebug() << "Bad DATA parse:" << line;
@@ -276,7 +286,35 @@ void Home::onSerialMessage(const QString &port, const QString &msg)
     }
     qDebug() << "STM32 (other):" << line;
 }
+void Home::handleDisconnectedState()
+{
+    isConnected = false;
+    hasGpsFix = false;
 
+    ui->btnConnect->setIcon(QIcon(":/img/connect.png"));
+
+    if (pingTimer) pingTimer->stop();
+
+    wpRequestedOnce = false;
+    dataRequestedOnce = false;
+    gpsRequestedOnce = false;
+
+    clearWaypoints();
+
+    ui->StSpeed->setText("0 km/h");
+    ui->StAlt->setText("0 m");
+
+    if (!currentPort.isEmpty()) {
+        serial->disconnectSerial(currentPort);
+        currentPort.clear();
+    }
+}
+void Home::clearWaypoints()
+{
+    wps.clear();
+    wpReading = false;
+    redrawWaypointsOnMap();
+}
 
 void Home::redrawWaypointsOnMap()
 {
@@ -421,8 +459,87 @@ void Home::addStyleSheet()
     ui->StAlt->setText("0 m");
 
 }
+void Home::refreshSerialPorts()
+{
+    QString currentSelected = ui->cbSerial->currentText();
+
+    QStringList systemPorts;
+    const QList<QSerialPortInfo> ports = QSerialPortInfo::availablePorts();
+    for (const QSerialPortInfo &port : ports) {
+        systemPorts << port.portName();
+    }
+
+    QStringList comboPorts;
+    for (int i = 0; i < ui->cbSerial->count(); ++i) {
+        comboPorts << ui->cbSerial->itemText(i);
+    }
+
+    if (comboPorts == systemPorts)
+        return;
+
+    bool wasBlocked = ui->cbSerial->blockSignals(true);
+    ui->cbSerial->clear();
+
+    if (systemPorts.isEmpty()) {
+        ui->cbSerial->addItem("No COM Ports");
+
+        if (isConnected) {
+            qDebug() << "Bağlı COM port çıkarıldı.";
+            isConnected = false;
+            ui->btnConnect->setIcon(QIcon(":/img/connect.png"));
+            pingTimer->stop();
+            wpRequestedOnce = false;
+            dataRequestedOnce = false;
+            gpsRequestedOnce = false;
+            clearWaypoints();
+            currentPort.clear();
+        }
+
+        ui->cbSerial->blockSignals(wasBlocked);
+        return;
+    }
+
+    ui->cbSerial->addItems(systemPorts);
+
+    int index = ui->cbSerial->findText(currentSelected);
+    if (index >= 0) {
+        ui->cbSerial->setCurrentIndex(index);
+    } else {
+        ui->cbSerial->setCurrentIndex(0);
+
+        if (isConnected && currentSelected == currentPort) {
+            qDebug() << "Bağlı port sistemden kaldırıldı:" << currentPort;
+            isConnected = false;
+            hasGpsFix = false;
+            ui->btnConnect->setIcon(QIcon(":/img/connect.png"));
+
+            if (pingTimer) pingTimer->stop();
+
+            wpRequestedOnce = false;
+            dataRequestedOnce = false;
+            gpsRequestedOnce = false;
+
+            clearWaypoints();
+
+            ui->StSpeed->setText("0 km/h");
+            ui->StAlt->setText("0 m");
+
+            currentPort.clear();
+        }
+    }
+
+    ui->cbSerial->blockSignals(wasBlocked);
+}
+void Home::sendPing()
+{
+    if (!isConnected) return;
+    if (currentPort.isEmpty()) return;
+
+    serial->send(currentPort, "PING\n");
+}
 
 void Home::listSerialPorts(){
+
     ui->cbSerial->clear();
 
     QList<QSerialPortInfo> ports = QSerialPortInfo::availablePorts();
@@ -442,7 +559,18 @@ void Home::listSerialPorts(){
 void Home::on_btnFC_clicked()
 {
     fcWin = new FlightController(serial,wps);
+    connect(fcWin, &FlightController::waypointsUpdated,
+            this, [this](const QVector<Waypoint>& newWps){
+                this->wps = newWps;
+                redrawWaypointsOnMap();
+                qDebug() << "Home: waypoints updated ->" << wps.size();
+            });
     fcWin->show();
+}
+void Home::on_btnSettings_clicked()
+{
+    settingsWin = new Settings(serial,servos);
+    settingsWin->show();
 }
 
 Home::~Home()

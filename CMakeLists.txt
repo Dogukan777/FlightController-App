@@ -26,7 +26,9 @@ set(PROJECT_SOURCES
     Source/flightcontroller.cpp
     Source/serialManager.cpp
     Source/home.cpp
+    Source/settings.cpp
 
+    Header/settings.h
     Header/home.h
     Header/main.h
     Header/flightcontroller.h
@@ -59,6 +61,9 @@ qt_add_executable(Kuzgun
         UI/flightcontroller.ui
         Source/HorizonWidget.cpp
         Header/HorizonWidget.h
+        UI/settings.ui
+        Header/settings.h
+        Source/settings.cpp
 
     )
 target_include_directories(Kuzgun PRIVATE

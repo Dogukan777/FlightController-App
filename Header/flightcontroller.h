@@ -17,6 +17,8 @@ struct Waypoint {
     QString status;
 };
 
+
+
 class FlightController : public QWidget
 {
     Q_OBJECT
@@ -44,6 +46,9 @@ public:
     void getMap();
     void getTriggers();
 
+signals:
+    void waypointsUpdated(const QVector<Waypoint>& wps);
+
 private slots:
     void onSendClicked();
     void onReadClicked();
@@ -62,6 +67,8 @@ private:
     static constexpr int COL_DIST   = 4;
     static constexpr int COL_RADIUS = 5;
     static constexpr int COL_REMOVE = 6;
+    bool m_drawEnabled = false;
+    bool m_mapReady    = false;
 
 };
 
