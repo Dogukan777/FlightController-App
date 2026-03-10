@@ -85,8 +85,12 @@
     wheelPxPerZoomLevel: 120
   });
 
-  let uavLat = 40.808616;
-  let uavLng = 29.359141;
+  const defaultLat = 40.808616;
+  const defaultLng = 29.359141;
+
+  let uavLat = defaultLat;
+  let uavLng = defaultLng;
+  let hasGpsFix = false;
   let wpLayer = L.layerGroup().addTo(map);
   let wpLine = L.polyline([], { weight: 3 }).addTo(map);
   let wpCount = 0;
@@ -94,7 +98,7 @@
   const circleRenderer = L.canvas({ padding: 0.5 });
 
 
-  map.setView([uavLat, uavLng], 16);
+  map.setView([defaultLat, defaultLng], 16);
 
 
   function addWaypointMarker(lat, lng) {
@@ -134,30 +138,44 @@
 
   let uavMarker = null;
   let follow = true;
+  uavMarker = L.marker([defaultLat, defaultLng], { icon: uavIcon }).addTo(map);
 
   /* -------------------- ZOOM BUTTONS -------------------- */
   function zoomIn() {
-    map.setView([uavLat, uavLng], map.getZoom() + 1, { animate: false });
+    const center = getZoomCenter();
+    map.setView(center, map.getZoom() + 1, { animate: false });
   }
+
   function zoomOut() {
-    map.setView([uavLat, uavLng], map.getZoom() - 1, { animate: false });
+    const center = getZoomCenter();
+    map.setView(center, map.getZoom() - 1, { animate: false });
+  }
+  function setGpsFixState(fix) {
+    hasGpsFix = fix;
   }
 
   /* Qt'den UAV konumu güncellemek için */
   function setUav(lat, lng, pan=true) {
-    uavLat = lat; uavLng = lng;
+    uavLat = lat;
+    uavLng = lng;
+    hasGpsFix = true;
 
-    if (!uavMarker) {
-      uavMarker = L.marker([lat, lng], { icon: uavIcon }).addTo(map);
-    } else {
-      uavMarker.setLatLng([lat, lng]);
-    }
+    uavMarker.setLatLng([lat, lng]);
 
     if (pan && follow) {
       map.panTo([lat, lng], { animate: false });
     }
   }
-
+  function getZoomCenter() {
+    if (hasGpsFix) {
+      return [uavLat, uavLng];
+    }
+    return [defaultLat, defaultLng];
+  }
+  function setMapZoomFromQt(zoomValue) {
+    const center = getZoomCenter();
+    map.setView(center, zoomValue, { animate: false });
+  }
 
   /* -------------------- FIX SIZE -------------------- */
   function fixSize() { map.invalidateSize(true); }

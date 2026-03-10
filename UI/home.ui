@@ -14,7 +14,7 @@
    <string>Form</string>
   </property>
   <property name="styleSheet">
-   <string notr="true">background-color: #1e1e1e;</string>
+   <string notr="true">background-color: #1e1e1e;alignment:AlignCenter</string>
   </property>
   <widget class="QFrame" name="topBar">
    <property name="geometry">
@@ -97,9 +97,9 @@
   <widget class="QWebEngineView" name="mapView" native="true">
    <property name="geometry">
     <rect>
-     <x>280</x>
+     <x>263</x>
      <y>62</y>
-     <width>1220</width>
+     <width>1210</width>
      <height>705</height>
     </rect>
    </property>
@@ -112,7 +112,7 @@
     <rect>
      <x>15</x>
      <y>70</y>
-     <width>250</width>
+     <width>240</width>
      <height>180</height>
     </rect>
    </property>
@@ -122,7 +122,7 @@
     <rect>
      <x>15</x>
      <y>280</y>
-     <width>250</width>
+     <width>240</width>
      <height>480</height>
     </rect>
    </property>
@@ -148,7 +148,7 @@
    <widget class="QLabel" name="lblAlt">
     <property name="geometry">
      <rect>
-      <x>150</x>
+      <x>140</x>
       <y>15</y>
       <width>91</width>
       <height>31</height>
@@ -185,7 +185,7 @@
    <widget class="QLabel" name="StAlt">
     <property name="geometry">
      <rect>
-      <x>150</x>
+      <x>140</x>
       <y>60</y>
       <width>91</width>
       <height>20</height>
@@ -200,6 +200,71 @@
      <string>0</string>
     </property>
    </widget>
+  </widget>
+  <widget class="QSlider" name="zoomSlider">
+   <property name="geometry">
+    <rect>
+     <x>1488</x>
+     <y>102</y>
+     <width>22</width>
+     <height>660</height>
+    </rect>
+   </property>
+   <property name="minimum">
+    <number>3</number>
+   </property>
+   <property name="maximum">
+    <number>19</number>
+   </property>
+   <property name="value">
+    <number>16</number>
+   </property>
+   <property name="orientation">
+    <enum>Qt::Orientation::Vertical</enum>
+   </property>
+  </widget>
+  <widget class="QLabel" name="lblZoom">
+   <property name="geometry">
+    <rect>
+     <x>1483</x>
+     <y>76</y>
+     <width>30</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <pointsize>11</pointsize>
+    </font>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">color:white;padding:2px</string>
+   </property>
+   <property name="text">
+    <string>16</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label">
+   <property name="geometry">
+    <rect>
+     <x>1480</x>
+     <y>57</y>
+     <width>55</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <pointsize>9</pointsize>
+     <bold>false</bold>
+    </font>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">color:white</string>
+   </property>
+   <property name="text">
+    <string>Zoom</string>
+   </property>
   </widget>
  </widget>
  <customwidgets>

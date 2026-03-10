@@ -53,6 +53,12 @@ void Home::getTriggers(){
             this, &Home::onSerialMessage);
     portScanTimer = new QTimer(this);
     connect(portScanTimer, &QTimer::timeout, this, &Home::refreshSerialPorts);
+    connect(ui->zoomSlider, &QSlider::valueChanged, this, [this](int value) {
+
+        QString js = QString("setMapZoomFromQt(%1);").arg(value);
+        ui->mapView->page()->runJavaScript(js);
+        ui->lblZoom->setText(QString::number(value));
+    });
 
     portScanTimer->start(500);
     pingTimer = new QTimer(this);
@@ -69,6 +75,7 @@ void Home::getTriggers(){
         }
     });
     linkWatchdogTimer->start(500);
+
 
 }
 void Home::onConnectClicked()
@@ -140,6 +147,7 @@ void Home::onSerialMessage(const QString &port, const QString &msg)
     if (line.startsWith("GPS,")) {
         QStringList parts = line.split(',');
         if (parts.size() >= 3 && parts[1] == "NOFIX") {
+            ui->mapView->page()->runJavaScript("setGpsFixState(false);");
             int sats = parts[2].toInt();
             hasGpsFix = false;
             qDebug().noquote() << QString("[GPS] NO FIX  SATS=%1").arg(sats);
@@ -154,16 +162,16 @@ void Home::onSerialMessage(const QString &port, const QString &msg)
             double speed = parts[4].toDouble(&okSpeed);
             int fix      = parts[5].toInt();
             int sats     = parts[6].toInt();
-
+            ui->mapView->page()->runJavaScript("setGpsFixState(true);");
             if (okLat && okLon && okAlt && okSpeed) {
-                qDebug().noquote()
+               /* qDebug().noquote()
                 << QString("[GPS] LAT=%1  LON=%2 ALT=%3 SPEED=%4 FIX=%5  SATS=%6")
                         .arg(lat, 0, 'f', 7)
                         .arg(lon, 0, 'f', 7)
                         .arg(alt,0,'f',1)
                         .arg(speed,0,'f',1)
                         .arg(fix)
-                        .arg(sats);
+                        .arg(sats);*/
 
                 lastGpsLat = lat;
                 lastGpsLon = lon;
@@ -181,6 +189,41 @@ void Home::onSerialMessage(const QString &port, const QString &msg)
         } else {
             qDebug() << "Bad GPS format:" << line;
         }
+        return;
+    }
+    if (line.startsWith("SETTINGS_DATA,")) {
+        QStringList parts = line.split(',');
+
+        if (parts.size() != 17) {
+            qDebug() << "Home SETTINGS_DATA parse error, parts size =" << parts.size();
+            return;
+        }
+
+        bool ok = true;
+        QVector<int> vals;
+        vals.reserve(16);
+
+        for (int i = 1; i < parts.size(); ++i) {
+            int v = parts[i].trimmed().toInt(&ok);
+            if (!ok) {
+                qDebug() << "Home SETTINGS_DATA invalid number at index" << i << ":" << parts[i];
+                return;
+            }
+            vals.push_back(v);
+        }
+
+        servos.clear();
+
+        for (int i = 0; i < 4; ++i) {
+            servoSettings s;
+            s.servoId   = vals[i * 4 + 0];
+            s.maxValue  = vals[i * 4 + 1];
+            s.minValue  = vals[i * 4 + 2];
+            s.instValue = vals[i * 4 + 3];
+            servos.push_back(s);
+        }
+
+        qDebug() << "Home updated servos from STM32, count =" << servos.size();
         return;
     }
 
@@ -269,11 +312,11 @@ void Home::onSerialMessage(const QString &port, const QString &msg)
                     m_horizon->setAttitude(rollDeg, pitchDeg);
                 }
                 // --------- PRINT ---------
-                qDebug().noquote()
+                /*qDebug().noquote()
                     << QString("ROLL=%1°  PITCH=%2°  YAW=%3°")
                            .arg(rollDeg, 7, 'f', 2)
                            .arg(pitchDeg, 7, 'f', 2)
-                           .arg(yawDeg, 7, 'f', 2);
+                           .arg(yawDeg, 7, 'f', 2);*/
             }
             else {
                 qDebug() << "Bad DATA parse:" << line;
@@ -570,6 +613,11 @@ void Home::on_btnFC_clicked()
 void Home::on_btnSettings_clicked()
 {
     settingsWin = new Settings(serial,servos);
+    connect(settingsWin, &Settings::servosUpdated,
+            this, [this](const QVector<servoSettings>& newServos) {
+                this->servos = newServos;
+                qDebug() << "Home servos updated from Settings, count =" << this->servos.size();
+            });
     settingsWin->show();
 }
 

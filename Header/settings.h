@@ -10,9 +10,9 @@ class Settings;
 }
 struct servoSettings {
     int servoId;
-    int servoMaxValue;
-    int servoMinValue;
-    int servoValue;
+    int maxValue;
+    int minValue;
+    int instValue;
 };
 class Settings : public QWidget
 {
@@ -24,6 +24,7 @@ public:
     void addStyleSheet();
     void listSerialPorts();
     void getTriggers();
+    void loadServos();
     void onSerialMessage(const QString &port, const QString &msg);
 
 private:
@@ -39,8 +40,12 @@ private:
     QElapsedTimer yawTimer;
     bool yawTimerStarted = false;
 
+signals:
+    void servosUpdated(const QVector<servoSettings>& newServos);
+
 
 private slots:
+    void onlyNumbers();
     void onSendClicked();
     void onReadClicked();
 
