@@ -37,7 +37,7 @@
     <rect>
      <x>20</x>
      <y>45</y>
-     <width>100</width>
+     <width>250</width>
      <height>35</height>
     </rect>
    </property>
@@ -50,7 +50,7 @@
     <string notr="true">color:white</string>
    </property>
    <property name="text">
-    <string>Servo_1</string>
+    <string>Servo_1 (Arka Üst Kuyruk)</string>
    </property>
   </widget>
   <widget class="QTextEdit" name="servo1_max">
@@ -249,7 +249,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <rect>
      <x>20</x>
      <y>155</y>
-     <width>100</width>
+     <width>250</width>
      <height>35</height>
     </rect>
    </property>
@@ -262,7 +262,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <string notr="true">color:white</string>
    </property>
    <property name="text">
-    <string>Servo_2</string>
+    <string>Servo_2 (Arka Alt Kuyruk)</string>
    </property>
   </widget>
   <widget class="QLabel" name="label_9">
@@ -439,7 +439,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <rect>
      <x>20</x>
      <y>265</y>
-     <width>100</width>
+     <width>250</width>
      <height>35</height>
     </rect>
    </property>
@@ -452,7 +452,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <string notr="true">color:white</string>
    </property>
    <property name="text">
-    <string>Servo_3</string>
+    <string>Servo_3 (Sağ Kanat)</string>
    </property>
   </widget>
   <widget class="QLabel" name="label_12">
@@ -631,7 +631,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <rect>
      <x>20</x>
      <y>375</y>
-     <width>100</width>
+     <width>250</width>
      <height>35</height>
     </rect>
    </property>
@@ -644,7 +644,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <string notr="true">color:white</string>
    </property>
    <property name="text">
-    <string>Servo_4</string>
+    <string>Servo_4 (Sol Kanat)</string>
    </property>
   </widget>
   <widget class="QLabel" name="label_15">
