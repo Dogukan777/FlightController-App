@@ -1,6 +1,6 @@
 #include "flightcontroller.h"
 #include "ui_flightcontroller.h"
-
+#include <QDoubleValidator>
 #include <QTableWidgetItem>
 #include <QPushButton>
 #include <QComboBox>
@@ -68,6 +68,44 @@ void FlightController::getMap() {
 }
 
 void FlightController::getTriggers(){
+
+    connect(ui->lblZoom, &QLineEdit::returnPressed, this, [this]() {
+        bool ok = false;
+
+        QString text = ui->lblZoom->text().trimmed();
+        text.replace(',', '.');
+
+        double zoom = text.toDouble(&ok);
+        if (!ok) return;
+
+        zoom = qBound(0.0, zoom, 22.0);
+
+        QString js = QString("setMapZoomFromQt(%1);").arg(zoom, 0, 'f', 1);
+        ui->mapView->page()->runJavaScript(js);
+
+        ui->zoomSlider->blockSignals(true);
+        ui->zoomSlider->setValue(qRound(zoom * 10.0));
+        ui->zoomSlider->blockSignals(false);
+
+        ui->lblZoom->setText(QString::number(zoom, 'f', 1));
+    });
+
+    connect(bridge, &MapBridge::zoomLevelChanged, this, [this](double zoom) {
+        ui->lblZoom->setText(QString::number(zoom, 'f', 1));
+
+        ui->zoomSlider->blockSignals(true);
+        ui->zoomSlider->setValue(qRound(zoom * 10.0));
+        ui->zoomSlider->blockSignals(false);
+    });
+
+    connect(ui->zoomSlider, &QSlider::valueChanged, this, [this](int value) {
+        double zoom = value / 10.0;
+
+        QString js = QString("setMapZoomFromQt(%1);").arg(zoom, 0, 'f', 1);
+        ui->mapView->page()->runJavaScript(js);
+
+        ui->lblZoom->setText(QString::number(zoom, 'f', 1));
+    });
 
     connect(ui->btnSend, &QToolButton::clicked,
             this, &FlightController::onSendClicked);
@@ -184,7 +222,7 @@ void FlightController::appendWaypoint(double lat, double lon)
     Waypoint wp{};
     wp.lat = lat;
     wp.lon = lon;
-    wp.alt = 100.0;
+    wp.alt = 40.0;
     wp.radius = 50.0;
     wp.status = "WAYPOINT";
 
@@ -319,7 +357,6 @@ void FlightController::rebuildRemoveButtonsRowProperty()
 
 void FlightController::redrawWaypointsOnMap()
 {
-    if (!m_drawEnabled) return; // Read'e basmadan asla çizme
     if (!m_mapReady)    return; // harita hazır değilse JS gönderme
 
     QJsonArray arr;
@@ -345,9 +382,7 @@ void FlightController::addStatusCombo(int row)
         "VTOL_TAKEOFF",
         "VTOL_LAND",
         "LOITER",
-        "RTL",
-        "Yasin",
-        "Doğukan"
+        "RTL"
     });
 
     if (row >= 0 && row < wps.size() && !wps[row].status.isEmpty()) {
@@ -384,6 +419,22 @@ void FlightController::rebuildStatusCombosRowProperty()
 
 
 void FlightController::addStyleSheet(){
+    //this->showFullScreen();
+    this->showMaximized();
+
+    QDoubleValidator *validator = new QDoubleValidator(0.0, 22.0, 1, this);
+    validator->setNotation(QDoubleValidator::StandardNotation);
+    validator->setLocale(QLocale::c());
+    ui->lblZoom->setValidator(validator);
+
+    ui->lblZoom->setStyleSheet(
+        "QLineEdit {"
+        "  color: white;"
+        "  background-color: #1e1e1e;"
+        "  border: 0.5px solid white;"
+        "  padding: 2px 2px;"
+        "}"
+        );
 
     ui->tableWaypoints->setColumnCount(7);
     ui->tableWaypoints->setHorizontalHeaderLabels({
@@ -477,4 +528,6 @@ void FlightController::addStyleSheet(){
         "  selection-background-color: #444;"
         "}"
         );*/
+    ui->zoomSlider->setRange(0, 220);
+    ui->zoomSlider->setSingleStep(1);
 }

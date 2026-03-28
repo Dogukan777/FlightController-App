@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1520</width>
+    <width>1530</width>
     <height>790</height>
    </rect>
   </property>
@@ -21,7 +21,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1520</width>
+     <width>1530</width>
      <height>57</height>
     </rect>
    </property>
@@ -70,7 +70,7 @@
    <widget class="QComboBox" name="cbSerial">
     <property name="geometry">
      <rect>
-      <x>1290</x>
+      <x>1310</x>
       <y>14</y>
       <width>76</width>
       <height>32</height>
@@ -80,7 +80,7 @@
    <widget class="QToolButton" name="btnConnect">
     <property name="geometry">
      <rect>
-      <x>1390</x>
+      <x>1410</x>
       <y>8</y>
       <width>90</width>
       <height>45</height>
@@ -99,8 +99,8 @@
     <rect>
      <x>263</x>
      <y>62</y>
-     <width>1210</width>
-     <height>705</height>
+     <width>1223</width>
+     <height>715</height>
     </rect>
    </property>
    <property name="styleSheet">
@@ -123,7 +123,7 @@
      <x>15</x>
      <y>280</y>
      <width>240</width>
-     <height>480</height>
+     <height>490</height>
     </rect>
    </property>
    <widget class="QLabel" name="lblSpeed">
@@ -204,51 +204,33 @@
   <widget class="QSlider" name="zoomSlider">
    <property name="geometry">
     <rect>
-     <x>1488</x>
-     <y>102</y>
-     <width>22</width>
-     <height>660</height>
+     <x>1502</x>
+     <y>110</y>
+     <width>15</width>
+     <height>662</height>
     </rect>
    </property>
    <property name="minimum">
-    <number>3</number>
+    <number>0</number>
    </property>
    <property name="maximum">
-    <number>19</number>
+    <number>220</number>
    </property>
    <property name="value">
-    <number>16</number>
+    <number>160</number>
+   </property>
+   <property name="sliderPosition">
+    <number>160</number>
    </property>
    <property name="orientation">
     <enum>Qt::Orientation::Vertical</enum>
    </property>
   </widget>
-  <widget class="QLabel" name="lblZoom">
-   <property name="geometry">
-    <rect>
-     <x>1483</x>
-     <y>76</y>
-     <width>30</width>
-     <height>20</height>
-    </rect>
-   </property>
-   <property name="font">
-    <font>
-     <pointsize>11</pointsize>
-    </font>
-   </property>
-   <property name="styleSheet">
-    <string notr="true">color:white;padding:2px</string>
-   </property>
-   <property name="text">
-    <string>16</string>
-   </property>
-  </widget>
   <widget class="QLabel" name="label">
    <property name="geometry">
     <rect>
-     <x>1480</x>
-     <y>57</y>
+     <x>1494</x>
+     <y>60</y>
      <width>55</width>
      <height>20</height>
     </rect>
@@ -264,6 +246,25 @@
    </property>
    <property name="text">
     <string>Zoom</string>
+   </property>
+  </widget>
+  <widget class="QLineEdit" name="lblZoom">
+   <property name="geometry">
+    <rect>
+     <x>1493</x>
+     <y>82</y>
+     <width>32</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">color:white</string>
+   </property>
+   <property name="text">
+    <string>16.0</string>
+   </property>
+   <property name="maxLength">
+    <number>4</number>
    </property>
   </widget>
  </widget>

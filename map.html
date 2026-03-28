@@ -80,7 +80,7 @@
     markerZoomAnimation: false,
     attributionControl: false,
     preferCanvas: true,
-    zoomSnap: 1,
+    zoomSnap: 0.1,
     wheelDebounceTime: 80,
     wheelPxPerZoomLevel: 120
   });
@@ -115,19 +115,18 @@
     wpCount = 0;
   }
 
-  L.tileLayer(
-    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-    {
-      maxZoom: 19,
-      keepBuffer: 6,
-      updateWhenZooming: false,
-      updateWhenIdle: true,
-      crossOrigin: true,
-      detectRetina: false,
-      reuseTiles: true,
-      unloadInvisibleTiles: true,
-    }
-  ).addTo(map);
+L.tileLayer(
+  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+  {
+    maxNativeZoom: 19,
+    maxZoom: 22,
+    keepBuffer: 6,
+    updateWhenZooming: false,
+    updateWhenIdle: true,
+    crossOrigin: true,
+    detectRetina: false
+  }
+).addTo(map);
 
   // UAV icon
   const uavIcon = L.icon({
@@ -173,8 +172,7 @@
     return [defaultLat, defaultLng];
   }
   function setMapZoomFromQt(zoomValue) {
-    const center = getZoomCenter();
-    map.setView(center, zoomValue, { animate: false });
+    map.setZoom(zoomValue, { animate: false });
   }
 
   /* -------------------- FIX SIZE -------------------- */
@@ -201,7 +199,6 @@
     return url.searchParams.get(name) ?? def;
   }
 
-  // ✅ sayfa açılır açılmaz çalışsın
   const pickDefault = getQueryParam("pick", "1"); // default: 1 (görünsün)
   if (pickDefault === "0") {
     // Home için kapalı
@@ -277,16 +274,21 @@ function redrawWaypointsFromList(coordsArray) {
     }
   }
 
+  map.on('zoomend', function () {
+    const zoom = map.getZoom();
 
+    if (bridge && bridge.onZoomChangedFromJs) {
+      bridge.onZoomChangedFromJs(zoom);
+    }
+  });
 
-  // Harita tıklaması
   map.on('click', function(e) {
     if (!pickMode) return;
 
     const lat = e.latlng.lat;
     const lng = e.latlng.lng;
 
-    addWaypointMarker(lat, lng);
+    // addWaypointMarker(lat, lng);
     addRadiusCircle(lat, lng, 50);
     // Leaflet container içindeki piksel koordinatı
     const p = map.latLngToContainerPoint(e.latlng);

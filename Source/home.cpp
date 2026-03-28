@@ -7,6 +7,7 @@
 #include <QComboBox>
 #include <QUrl>
 #include <QDebug>
+#include <QDoubleValidator>
 
 #include <QWebEngineProfile>
 #include <QStandardPaths>
@@ -47,6 +48,36 @@ Home::Home(QWidget *parent)
 }
 
 void Home::getTriggers(){
+
+    connect(ui->lblZoom, &QLineEdit::returnPressed, this, [this]() {
+        bool ok = false;
+
+        QString text = ui->lblZoom->text().trimmed();
+        text.replace(',', '.');   // virgülü noktaya çevir
+
+        double zoom = text.toDouble(&ok);
+        if (!ok) return;
+
+        zoom = qBound(0.0, zoom, 22.0);
+
+        QString js = QString("setMapZoomFromQt(%1);").arg(zoom, 0, 'f', 1);
+        ui->mapView->page()->runJavaScript(js);
+
+        ui->zoomSlider->blockSignals(true);
+        ui->zoomSlider->setValue(qRound(zoom * 10.0));
+        ui->zoomSlider->blockSignals(false);
+
+        ui->lblZoom->setText(QString::number(zoom, 'f', 1));
+    });
+
+    connect(bridge, &MapBridge::zoomLevelChanged, this, [this](double zoom) {
+
+        ui->lblZoom->setText(QString::number(zoom, 'f', 1));
+
+        ui->zoomSlider->blockSignals(true);
+        ui->zoomSlider->setValue(int(zoom * 10));
+        ui->zoomSlider->blockSignals(false);
+    });
     connect(ui->btnConnect, &QToolButton::clicked,
             this, &Home::onConnectClicked);
     connect(serial, &SerialManager::messageReceived,
@@ -54,10 +85,12 @@ void Home::getTriggers(){
     portScanTimer = new QTimer(this);
     connect(portScanTimer, &QTimer::timeout, this, &Home::refreshSerialPorts);
     connect(ui->zoomSlider, &QSlider::valueChanged, this, [this](int value) {
+        double zoom = value / 10.0;
 
-        QString js = QString("setMapZoomFromQt(%1);").arg(value);
+        QString js = QString("setMapZoomFromQt(%1);").arg(zoom);
         ui->mapView->page()->runJavaScript(js);
-        ui->lblZoom->setText(QString::number(value));
+
+        ui->lblZoom->setText(QString::number(zoom, 'f', 1));
     });
 
     portScanTimer->start(500);
@@ -164,14 +197,14 @@ void Home::onSerialMessage(const QString &port, const QString &msg)
             int sats     = parts[6].toInt();
             ui->mapView->page()->runJavaScript("setGpsFixState(true);");
             if (okLat && okLon && okAlt && okSpeed) {
-               /* qDebug().noquote()
+                qDebug().noquote()
                 << QString("[GPS] LAT=%1  LON=%2 ALT=%3 SPEED=%4 FIX=%5  SATS=%6")
                         .arg(lat, 0, 'f', 7)
                         .arg(lon, 0, 'f', 7)
                         .arg(alt,0,'f',1)
                         .arg(speed,0,'f',1)
                         .arg(fix)
-                        .arg(sats);*/
+                        .arg(sats);
 
                 lastGpsLat = lat;
                 lastGpsLon = lon;
@@ -417,6 +450,12 @@ void Home::updateUavOnMap(double lat, double lon, bool pan)
 
 void Home::addStyleSheet()
 {
+    QDoubleValidator *validator = new QDoubleValidator(0.0, 22.0, 1, this);
+    validator->setNotation(QDoubleValidator::StandardNotation);
+    validator->setLocale(QLocale::c());
+    ui->lblZoom->setValidator(validator);
+    //this->showFullScreen();
+    this->showMaximized();
     ui->btnFC->setText("Flight Plan");
     QFont font("Segoe UI", 12);
     font.setWeight(QFont::DemiBold);   // veya QFont::Bold
@@ -500,6 +539,14 @@ void Home::addStyleSheet()
         );
     ui->StSpeed->setText("0 km/h");
     ui->StAlt->setText("0 m");
+    ui->lblZoom->setStyleSheet(
+        "QLineEdit {"
+        "  color: white;"
+        "  background-color: #1e1e1e;"
+        "  border: 0.5px solid white;"
+        "  padding: 2px 2px;"
+        "}"
+        );
 
 }
 void Home::refreshSerialPorts()
@@ -601,7 +648,7 @@ void Home::listSerialPorts(){
 
 void Home::on_btnFC_clicked()
 {
-    fcWin = new FlightController(serial,wps);
+    fcWin = new FlightController(serial, wps);
     connect(fcWin, &FlightController::waypointsUpdated,
             this, [this](const QVector<Waypoint>& newWps){
                 this->wps = newWps;
@@ -612,7 +659,7 @@ void Home::on_btnFC_clicked()
 }
 void Home::on_btnSettings_clicked()
 {
-    settingsWin = new Settings(serial,servos);
+    settingsWin = new Settings(serial, servos);
     connect(settingsWin, &Settings::servosUpdated,
             this, [this](const QVector<servoSettings>& newServos) {
                 this->servos = newServos;

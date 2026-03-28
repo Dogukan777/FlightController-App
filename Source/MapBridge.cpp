@@ -17,3 +17,8 @@ void MapBridge::onMapClicked(double lat, double lng, int x, int y) {
              << "x=" << x << "y=" << y;
     emit waypointAdded(lat, lng);
 }
+
+void MapBridge::onZoomChangedFromJs(double zoom)
+{
+    emit zoomLevelChanged(zoom);
+}
