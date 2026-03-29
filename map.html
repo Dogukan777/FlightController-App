@@ -6,6 +6,7 @@
 
   <link rel="stylesheet" href="qrc:/img/leaflet/leaflet.css">
   <script src="qrc:/img/leaflet/leaflet.js"></script>
+  <script src="qrc:/img/leaflet/leaflet.polylineDecorator.js"></script>
 
   <!--  Qt WebChannel (JS -> C++) -->
   <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
@@ -92,7 +93,9 @@
   let uavLng = defaultLng;
   let hasGpsFix = false;
   let wpLayer = L.layerGroup().addTo(map);
-  let wpLine = L.polyline([], { weight: 3 }).addTo(map);
+  let wpLine = L.polyline([], { weight: 3, color: "#3b82f6" }).addTo(map);
+  let wpArrowLayer = L.layerGroup().addTo(map);
+  let wpArrowDecorator = null;
   let wpCount = 0;
   let wpCircleLayer = L.layerGroup().addTo(map);
   const circleRenderer = L.canvas({ padding: 0.5 });
@@ -107,11 +110,12 @@
     m.bindTooltip("WP " + wpCount, {permanent:true, direction:"top", offset:[0,-10]});
     wpLine.addLatLng([lat, lng]);
   }
-  // C++'tan tablo temizlenince haritayı da temizlemek istersen:
-  function clearWaypointsOnMap(){
+  function clearWaypointsOnMap() {
     wpLayer.clearLayers();
     wpLine.setLatLngs([]);
-    wpCircleLayer.clearLayers(); // ✅ radiusları da sil
+    wpCircleLayer.clearLayers();
+    wpArrowLayer.clearLayers();
+
     wpCount = 0;
   }
 
@@ -249,7 +253,40 @@ function redrawWaypointsFromList(coordsArray) {
   }
 
   wpLine.setLatLngs(latlngs);
+
+  if (latlngs.length >= 2) {
+    for (let i = 0; i < latlngs.length - 1; i++) {
+
+      const segment = [
+        latlngs[i],
+        latlngs[i + 1]
+      ];
+
+      L.polylineDecorator(segment, {
+        patterns: [
+          {
+            offset: '50%',
+            repeat: 0,
+            symbol: L.Symbol.arrowHead({
+              pixelSize: 14,
+              polygon: true,
+              pathOptions: {
+                color: 'yellow',
+                fillOpacity: 1,
+                weight: 2
+              }
+            })
+          }
+        ]
+      }).addTo(wpArrowLayer);
+
+    }
+  }
+
 }
+window.addEventListener('load', () => {
+  console.log("polylineDecorator:", typeof L.polylineDecorator);
+});
 
   function addRadiusCircle(lat, lng, radiusMeters) {
     L.circle([lat, lng], {

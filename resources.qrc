@@ -18,5 +18,6 @@
         <file>img/flightplan.png</file>
         <file>img/flightcontroller.png</file>
         <file>img/rovercontroller.png</file>
+        <file>img/leaflet/leaflet.polylineDecorator.js</file>
     </qresource>
 </RCC>
